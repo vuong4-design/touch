@@ -19,23 +19,34 @@ jobs:
         run: |
           brew update
           brew install cmake ldid dpkg
+          echo "$(brew --prefix dpkg)/libexec/dpkg" >> "$GITHUB_PATH"
 
       - name: Set up Theos
         run: |
           git clone --depth=1 https://github.com/theos/theos.git "$THEOS"
 
+      - name: Restore OpenCV framework cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/opencv/ios/opencv2.framework
+          key: opencv-ios-4.x-${{ runner.os }}-arm64-arm64e-14
+
       - name: Build OpenCV iOS framework
         run: |
-          git clone --depth=1 --branch 4.x https://github.com/opencv/opencv.git "$RUNNER_TEMP/opencv"
-          pushd "$RUNNER_TEMP/opencv"
-          python3 platforms/ios/build_framework.py ios \
-            --iphoneos_archs "arm64,arm64e" \
-            --iphoneos_deployment_target "14.0" \
-            --disable-bitcode \
-            --static \
-            --build_only_specified_archs \
-            --legacy_build
-          popd
+          if [ ! -d "$RUNNER_TEMP/opencv/ios/opencv2.framework" ]; then
+            git clone --depth=1 --branch 4.x https://github.com/opencv/opencv.git "$RUNNER_TEMP/opencv"
+            pushd "$RUNNER_TEMP/opencv"
+            python3 platforms/ios/build_framework.py ios \
+              --iphoneos_archs "arm64,arm64e" \
+              --iphoneos_deployment_target "14.0" \
+              --disable-bitcode \
+              --static \
+              --build_only_specified_archs \
+              --legacy_build
+            popd
+          else
+            echo "Using cached OpenCV framework."
+          fi
           mkdir -p frameworks
           cp -R "$RUNNER_TEMP/opencv/ios/opencv2.framework" frameworks/opencv2.framework
 
@@ -48,3 +59,9 @@ jobs:
         with:
           name: zxtouch-deb
           path: packages/*.deb
+
+      - name: Upload OpenCV framework
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencv2-framework
+          path: frameworks/opencv2.framework
