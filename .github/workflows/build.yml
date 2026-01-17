@@ -26,6 +26,15 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/theos/theos.git "$THEOS"
 
+      - name: Ensure dm.pl is available
+        run: |
+          if ! command -v dm.pl >/dev/null; then
+            mkdir -p "$HOME/.local/bin"
+            curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/dm.pl -o "$HOME/.local/bin/dm.pl"
+            chmod +x "$HOME/.local/bin/dm.pl"
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          fi
+
       - name: Restore OpenCV framework cache
         uses: actions/cache@v4
         with:
