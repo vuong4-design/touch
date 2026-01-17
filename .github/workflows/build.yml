@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env:
+      THEOS: ${{ github.workspace }}/theos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          brew update
+          brew install cmake ldid dpkg
+
+      - name: Set up Theos
+        run: |
+          git clone --depth=1 https://github.com/theos/theos.git "$THEOS"
+
+      - name: Build OpenCV iOS framework
+        run: |
+          git clone --depth=1 --branch 4.x https://github.com/opencv/opencv.git "$RUNNER_TEMP/opencv"
+          python3 "$RUNNER_TEMP/opencv/platforms/ios/build_framework.py" ios \
+            --iphoneos_archs "arm64,arm64e" \
+            --iphoneos_deployment_target "14.0" \
+            --disable-bitcode \
+            --static \
+            --build_only_specified_archs \
+            --legacy_build
+          mkdir -p frameworks
+          cp -R "$RUNNER_TEMP/opencv/ios/opencv2.framework" frameworks/opencv2.framework
+
+      - name: Build package
+        run: |
+          make package FINALPACKAGE=1
+
+      - name: Upload deb package
+        uses: actions/upload-artifact@v4
+        with:
+          name: zxtouch-deb
+          path: packages/*.deb
