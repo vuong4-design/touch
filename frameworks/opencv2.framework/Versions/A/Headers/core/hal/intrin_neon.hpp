@@ -56,7 +56,7 @@ namespace cv
 CV_CPU_OPTIMIZATION_HAL_NAMESPACE_BEGIN
 
 #define CV_SIMD128 1
-#if defined(__aarch64__) || defined(_M_ARM64)
+#if defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
 #define CV_SIMD128_64F 1
 #else
 #define CV_SIMD128_64F 0
@@ -72,7 +72,7 @@ CV_CPU_OPTIMIZATION_HAL_NAMESPACE_BEGIN
 //
 // [1] https://developer.arm.com/documentation/101028/0012/13--Advanced-SIMD--Neon--intrinsics
 // [2] https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros
-#if defined(__ARM_64BIT_STATE) || defined(_M_ARM64)
+#if defined(__ARM_64BIT_STATE) || defined(_M_ARM64) || defined(_M_ARM64EC)
 #define CV_NEON_AARCH64 1
 #else
 #define CV_NEON_AARCH64 0
@@ -888,9 +888,10 @@ inline v_uint32x4 v_dotprod_expand_fast(const v_uint8x16& a, const v_uint8x16& b
 
 inline v_int32x4 v_dotprod_expand_fast(const v_int8x16& a, const v_int8x16& b)
 {
-    int16x8_t prod = vmull_s8(vget_low_s8(a.val), vget_low_s8(b.val));
-    prod = vmlal_s8(prod, vget_high_s8(a.val), vget_high_s8(b.val));
-    return v_int32x4(vaddl_s16(vget_low_s16(prod), vget_high_s16(prod)));
+    int16x8_t p0 = vmull_s8(vget_low_s8(a.val),  vget_low_s8(b.val));
+    int16x8_t p1 = vmull_s8(vget_high_s8(a.val), vget_high_s8(b.val));
+    int32x4_t s0 = vaddl_s16(vget_low_s16(p0), vget_low_s16(p1));
+    return v_int32x4(vaddq_s32(s0, vaddl_s16(vget_high_s16(p0), vget_high_s16(p1))));
 }
 inline v_int32x4 v_dotprod_expand_fast(const v_int8x16& a, const v_int8x16& b, const v_int32x4& c)
 {
@@ -1080,7 +1081,7 @@ OPENCV_HAL_IMPL_NEON_INT_CMP_OP(v_int16x8, vreinterpretq_s16_u16, s16, u16)
 OPENCV_HAL_IMPL_NEON_INT_CMP_OP(v_uint32x4, OPENCV_HAL_NOP, u32, u32)
 OPENCV_HAL_IMPL_NEON_INT_CMP_OP(v_int32x4, vreinterpretq_s32_u32, s32, u32)
 OPENCV_HAL_IMPL_NEON_INT_CMP_OP(v_float32x4, vreinterpretq_f32_u32, f32, u32)
-#if defined(__aarch64__) || defined(_M_ARM64)
+#if defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
 static inline uint64x2_t vmvnq_u64(uint64x2_t a)
 {
     uint64x2_t vx = vreinterpretq_u64_u32(vdupq_n_u32(0xFFFFFFFF));
@@ -1822,7 +1823,7 @@ inline v_int32x4 v_load_expand_q(const schar* ptr)
     return v_int32x4(vmovl_s16(v1));
 }
 
-#if defined(__aarch64__) || defined(_M_ARM64)
+#if defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
 #define OPENCV_HAL_IMPL_NEON_UNPACKS(_Tpvec, suffix) \
 inline void v_zip(const v_##_Tpvec& a0, const v_##_Tpvec& a1, v_##_Tpvec& b0, v_##_Tpvec& b1) \
 { \
