@@ -154,6 +154,8 @@ device = zxtouch("127.0.0.1") # create instance
 
 [Screenshot](#screenshot)
 
+[Hardware Key Events](#hardware-key-events)
+
 [Toast](#toast)
 
 [Color Picker (RGB Value From A Point on Screen)](#color-picker-rgb-value-from-a-point-on-screen)
@@ -274,6 +276,29 @@ def save_to_system_album(filePath):
 
 def clear_system_album():
 	"""Delete all images stored in the ZXTouch Photos album."""
+```
+
+## Hardware Key Events
+
+Send hardware key down/up events.
+
+```python
+def key_down(key_type):
+	"""Press a hardware key."""
+
+def key_up(key_type):
+	"""Release a hardware key."""
+```
+
+Key type constants:
+
+```python
+from zxtouch.hardwarekeytypes import (
+	HARDWARE_KEY_HOME,
+	HARDWARE_KEY_VOLUME_UP,
+	HARDWARE_KEY_VOLUME_DOWN,
+	HARDWARE_KEY_LOCK,
+)
 ```
 
 ## Bring Application to Foreground
