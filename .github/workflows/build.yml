@@ -1,0 +1,55 @@
+name: Build
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env:
+      THEOS: ${{ github.workspace }}/theos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          brew update
+          brew install ldid dpkg
+          echo "DPKG_BIN=$(brew --prefix dpkg)/libexec/dpkg" >> "$GITHUB_ENV"
+          echo "$(brew --prefix dpkg)/libexec/dpkg" >> "$GITHUB_PATH"
+
+      - name: Set up Theos
+        run: |
+          git clone --depth=1 https://github.com/theos/theos.git "$THEOS"
+          "$THEOS/bin/update-theos"
+
+      - name: Ensure dm.pl is available
+        run: |
+          if ! command -v dm.pl >/dev/null; then
+            mkdir -p "$HOME/.local/bin"
+            curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/dm.pl -o "$HOME/.local/bin/dm.pl"
+            chmod +x "$HOME/.local/bin/dm.pl"
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          fi
+
+      - name: Verify OpenCV framework
+        run: |
+          if [ ! -d "frameworks/opencv2.framework" ]; then
+            echo "Missing frameworks/opencv2.framework. Please add the prebuilt framework to the repo."
+            exit 1
+          fi
+
+      - name: Build package
+        run: |
+          export PATH="${DPKG_BIN}:$PATH"
+          make package FINALPACKAGE=1
+
+      - name: Upload deb package
+        uses: actions/upload-artifact@v4
+        with:
+          name: zxtouch-deb
+          path: packages/*.deb
