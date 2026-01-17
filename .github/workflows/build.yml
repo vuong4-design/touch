@@ -27,13 +27,15 @@ jobs:
       - name: Build OpenCV iOS framework
         run: |
           git clone --depth=1 --branch 4.x https://github.com/opencv/opencv.git "$RUNNER_TEMP/opencv"
-          python3 "$RUNNER_TEMP/opencv/platforms/ios/build_framework.py" ios \
+          pushd "$RUNNER_TEMP/opencv"
+          python3 platforms/ios/build_framework.py ios \
             --iphoneos_archs "arm64,arm64e" \
             --iphoneos_deployment_target "14.0" \
             --disable-bitcode \
             --static \
             --build_only_specified_archs \
             --legacy_build
+          popd
           mkdir -p frameworks
           cp -R "$RUNNER_TEMP/opencv/ios/opencv2.framework" frameworks/opencv2.framework
 
