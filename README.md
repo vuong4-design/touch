@@ -152,6 +152,8 @@ device = zxtouch("127.0.0.1") # create instance
 
 [Image Matching](#image-matching)
 
+[Screenshot](#screenshot)
+
 [Toast](#toast)
 
 [Color Picker (RGB Value From A Point on Screen)](#color-picker-rgb-value-from-a-point-on-screen)
@@ -248,6 +250,30 @@ time.sleep(1)
 device.touch_with_list([{"type": TOUCH_UP, "finger_index": 1, "x": 300, "y": 300}, {"type": TOUCH_UP, "finger_index": 2, "x": 500, "y": 500}])
 
 device.disconnect()
+```
+
+## Screenshot:
+
+Capture a screenshot and optionally crop to a region.
+
+```python
+def screenshot(filePath, region=None):
+	"""Capture a screenshot.
+
+	Args:
+		filePath: output path on the device.
+		region: optional tuple (x, y, width, height) in pixels.
+	"""
+```
+
+Save and clear screenshots in the ZXTouch album.
+
+```python
+def save_to_system_album(filePath):
+	"""Save the image at filePath to the ZXTouch Photos album."""
+
+def clear_system_album():
+	"""Delete all images stored in the ZXTouch Photos album."""
 ```
 
 ## Bring Application to Foreground
