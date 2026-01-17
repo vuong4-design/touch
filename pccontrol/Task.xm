@@ -322,6 +322,65 @@ void processTask(UInt8 *buff, CFWriteStreamRef writeStreamRef)
             }
         }
     }
+    else if (taskType == TASK_APP_KILL)
+    {
+        @autoreleasepool {
+            NSError *err = nil;
+            killAppFromRawData(eventData, &err);
+            if (err)
+            {
+                notifyClient((UInt8*)[[err localizedDescription] UTF8String], writeStreamRef);
+            }
+            else
+            {
+                notifyClient((UInt8*)"0\r\n", writeStreamRef);
+            }
+        }
+    }
+    else if (taskType == TASK_APP_STATE)
+    {
+        @autoreleasepool {
+            NSError *err = nil;
+            NSString *state = appStateFromRawData(eventData, &err);
+            if (err)
+            {
+                notifyClient((UInt8*)[[err localizedDescription] UTF8String], writeStreamRef);
+            }
+            else
+            {
+                notifyClient((UInt8*)[[NSString stringWithFormat:@"0;;%@\r\n", state] UTF8String], writeStreamRef);
+            }
+        }
+    }
+    else if (taskType == TASK_APP_INFO)
+    {
+        @autoreleasepool {
+            NSError *err = nil;
+            NSString *info = appInfoFromRawData(eventData, &err);
+            if (err)
+            {
+                notifyClient((UInt8*)[[err localizedDescription] UTF8String], writeStreamRef);
+            }
+            else
+            {
+                notifyClient((UInt8*)[[NSString stringWithFormat:@"0;;%@\r\n", info] UTF8String], writeStreamRef);
+            }
+        }
+    }
+    else if (taskType == TASK_FRONTMOST_APP_ID)
+    {
+        @autoreleasepool {
+            NSString *frontApp = frontMostAppId();
+            notifyClient((UInt8*)[[NSString stringWithFormat:@"0;;%@\r\n", frontApp] UTF8String], writeStreamRef);
+        }
+    }
+    else if (taskType == TASK_FRONTMOST_APP_ORIENTATION)
+    {
+        @autoreleasepool {
+            NSString *orientation = frontMostAppOrientation();
+            notifyClient((UInt8*)[[NSString stringWithFormat:@"0;;%@\r\n", orientation] UTF8String], writeStreamRef);
+        }
+    }
     else if (taskType == TASK_SCREENSHOT)
     {
         @autoreleasepool {

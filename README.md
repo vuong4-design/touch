@@ -156,6 +156,8 @@ device = zxtouch("127.0.0.1") # create instance
 
 [Hardware Key Events](#hardware-key-events)
 
+[App Management](#app-management)
+
 [Toast](#toast)
 
 [Color Picker (RGB Value From A Point on Screen)](#color-picker-rgb-value-from-a-point-on-screen)
@@ -299,6 +301,27 @@ from zxtouch.hardwarekeytypes import (
 	HARDWARE_KEY_VOLUME_DOWN,
 	HARDWARE_KEY_LOCK,
 )
+```
+
+## App Management
+
+Terminate an app, query state/info, and check the frontmost app.
+
+```python
+def app_kill(bundle_identifier):
+	"""Terminate an application by bundle identifier."""
+
+def app_state(bundle_identifier):
+	"""Get application state by bundle identifier."""
+
+def app_info(bundle_identifier):
+	"""Get application info by bundle identifier."""
+
+def front_most_app_id():
+	"""Get the frontmost application bundle identifier."""
+
+def front_most_orientation():
+	"""Get the frontmost application orientation."""
 ```
 
 ## Bring Application to Foreground
