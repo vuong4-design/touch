@@ -18,7 +18,7 @@ jobs:
       - name: Install build dependencies
         run: |
           brew update
-          brew install cmake ldid dpkg
+          brew install ldid dpkg
           echo "DPKG_BIN=$(brew --prefix dpkg)/libexec/dpkg" >> "$GITHUB_ENV"
           echo "$(brew --prefix dpkg)/libexec/dpkg" >> "$GITHUB_PATH"
 
@@ -36,30 +36,12 @@ jobs:
             echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           fi
 
-      - name: Restore OpenCV framework cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/opencv/ios/opencv2.framework
-          key: opencv-ios-4.x-${{ runner.os }}-arm64-arm64e-14
-
-      - name: Build OpenCV iOS framework
+      - name: Verify OpenCV framework
         run: |
-          if [ ! -d "$RUNNER_TEMP/opencv/ios/opencv2.framework" ]; then
-            git clone --depth=1 --branch 4.x https://github.com/opencv/opencv.git "$RUNNER_TEMP/opencv"
-            pushd "$RUNNER_TEMP/opencv"
-            python3 platforms/ios/build_framework.py ios \
-              --iphoneos_archs "arm64,arm64e" \
-              --iphoneos_deployment_target "14.0" \
-              --disable-bitcode \
-              --static \
-              --build_only_specified_archs \
-              --legacy_build
-            popd
-          else
-            echo "Using cached OpenCV framework."
+          if [ ! -d "frameworks/opencv2.framework" ]; then
+            echo "Missing frameworks/opencv2.framework. Please add the prebuilt framework to the repo."
+            exit 1
           fi
-          mkdir -p frameworks
-          cp -R "$RUNNER_TEMP/opencv/ios/opencv2.framework" frameworks/opencv2.framework
 
       - name: Build package
         run: |
@@ -71,9 +53,3 @@ jobs:
         with:
           name: zxtouch-deb
           path: packages/*.deb
-
-      - name: Upload OpenCV framework
-        uses: actions/upload-artifact@v4
-        with:
-          name: opencv2-framework
-          path: frameworks/opencv2.framework
