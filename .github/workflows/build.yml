@@ -25,6 +25,7 @@ jobs:
       - name: Set up Theos
         run: |
           git clone --depth=1 https://github.com/theos/theos.git "$THEOS"
+          "$THEOS/bin/update-theos"
 
       - name: Ensure dm.pl is available
         run: |
