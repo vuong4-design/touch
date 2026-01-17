@@ -19,6 +19,7 @@ jobs:
         run: |
           brew update
           brew install cmake ldid dpkg
+          echo "DPKG_BIN=$(brew --prefix dpkg)/libexec/dpkg" >> "$GITHUB_ENV"
           echo "$(brew --prefix dpkg)/libexec/dpkg" >> "$GITHUB_PATH"
 
       - name: Set up Theos
@@ -52,6 +53,7 @@ jobs:
 
       - name: Build package
         run: |
+          export PATH="${DPKG_BIN}:$PATH"
           make package FINALPACKAGE=1
 
       - name: Upload deb package
