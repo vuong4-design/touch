@@ -12,6 +12,8 @@ pccontrol_CCFLAGS = -std=c++11
 
 pccontrol_CFLAGS += -F$(THEOS_PROJECT_DIR)/frameworks
 pccontrol_LDFLAGS += -F$(THEOS_PROJECT_DIR)/frameworks
+pccontrol_CFLAGS += -I$(THEOS_PROJECT_DIR)/frameworks/opencv2.framework/Versions/A/Headers
+pccontrol_CCFLAGS += -I$(THEOS_PROJECT_DIR)/frameworks/opencv2.framework/Versions/A/Headers
 
 pccontrol_PRIVATE_FRAMEWORKS = IOKit
 pccontrol_EXTRA_FRAMEWORKS = opencv2
@@ -21,5 +23,4 @@ include $(THEOS_MAKE_PATH)/tweak.mk
 
 after-install::
 	install.exec "chown -R mobile:mobile /var/mobile/Library/ZXTouch && killall -9 SpringBoard;"
-
 
