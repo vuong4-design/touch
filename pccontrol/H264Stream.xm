@@ -43,7 +43,7 @@ static void H264OutputCallback(void *outputCallbackRefCon,
     BOOL isKeyframe = NO;
     CFArrayRef attachments = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, false);
     if (attachments && CFArrayGetCount(attachments) > 0) {
-        CFDictionaryRef attachment = CFArrayGetValueAtIndex(attachments, 0);
+        CFDictionaryRef attachment = (CFDictionaryRef)CFArrayGetValueAtIndex(attachments, 0);
         BOOL notSync = CFDictionaryContainsKey(attachment, kCMSampleAttachmentKey_NotSync);
         isKeyframe = !notSync;
     }
