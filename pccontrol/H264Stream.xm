@@ -14,6 +14,7 @@ static const int kH264TargetWidth = 1280;
 static const int kH264TargetHeight = 720;
 static const int kH264TargetFPS = 20;
 static const int kH264KeyframeIntervalSeconds = 2;
+static const int kPCRIntervalFrames = 10;
 static const uint16_t kTSVideoPid = 0x0100;
 static const uint16_t kTSPatPid = 0x0000;
 static const uint16_t kTSPmtPid = 0x1000;
@@ -121,97 +122,135 @@ static uint32_t mpegCrc32(const uint8_t *data, size_t length) {
     return crc;
 }
 
-static NSData *buildPATPacket(void) {
-    uint8_t payload[17] = {0};
+static NSData *buildPATPacket(uint8_t continuityCounter) {
+    uint8_t section[16] = {0};
     size_t index = 0;
-    payload[index++] = 0x00; // table_id
-    payload[index++] = 0xB0; // section_syntax_indicator + reserved + section_length high
-    payload[index++] = 0x0D; // section_length low (13)
-    payload[index++] = (kTSProgramNumber >> 8) & 0xFF;
-    payload[index++] = kTSProgramNumber & 0xFF;
-    payload[index++] = 0xC1; // version_number + current_next_indicator
-    payload[index++] = 0x00; // section_number
-    payload[index++] = 0x00; // last_section_number
-    payload[index++] = (kTSProgramNumber >> 8) & 0xFF;
-    payload[index++] = kTSProgramNumber & 0xFF;
-    payload[index++] = 0xE0 | ((kTSPmtPid >> 8) & 0x1F);
-    payload[index++] = kTSPmtPid & 0xFF;
+    section[index++] = 0x00; // table_id
+    section[index++] = 0xB0; // section_syntax_indicator + reserved + section_length high
+    section[index++] = 0x00; // section_length low (filled later)
+    section[index++] = 0x00; // transport_stream_id high
+    section[index++] = 0x01; // transport_stream_id low
+    section[index++] = 0xC1; // version_number + current_next_indicator
+    section[index++] = 0x00; // section_number
+    section[index++] = 0x00; // last_section_number
+    section[index++] = (kTSProgramNumber >> 8) & 0xFF;
+    section[index++] = kTSProgramNumber & 0xFF;
+    section[index++] = 0xE0 | ((kTSPmtPid >> 8) & 0x1F);
+    section[index++] = kTSPmtPid & 0xFF;
 
-    uint32_t crc = mpegCrc32(payload, index);
-    payload[index++] = (crc >> 24) & 0xFF;
-    payload[index++] = (crc >> 16) & 0xFF;
-    payload[index++] = (crc >> 8) & 0xFF;
-    payload[index++] = crc & 0xFF;
+    size_t sectionLength = (index - 3) + 4;
+    section[1] = 0xB0 | ((sectionLength >> 8) & 0x0F);
+    section[2] = sectionLength & 0xFF;
+
+    uint32_t crc = mpegCrc32(section, index);
+    section[index++] = (crc >> 24) & 0xFF;
+    section[index++] = (crc >> 16) & 0xFF;
+    section[index++] = (crc >> 8) & 0xFF;
+    section[index++] = crc & 0xFF;
 
     uint8_t packet[188] = {0};
     packet[0] = 0x47;
     packet[1] = 0x40 | ((kTSPatPid >> 8) & 0x1F);
     packet[2] = kTSPatPid & 0xFF;
-    packet[3] = 0x10;
+    packet[3] = 0x10 | (continuityCounter & 0x0F);
     packet[4] = 0x00; // pointer_field
-    memcpy(packet + 5, payload, index);
+    memcpy(packet + 5, section, index);
     memset(packet + 5 + index, 0xFF, 188 - 5 - index);
     return [NSData dataWithBytes:packet length:sizeof(packet)];
 }
 
-static NSData *buildPMTPacket(void) {
-    uint8_t payload[32] = {0};
+static NSData *buildPMTPacket(uint8_t continuityCounter) {
+    uint8_t section[32] = {0};
     size_t index = 0;
-    payload[index++] = 0x02; // table_id
-    payload[index++] = 0xB0; // section_syntax_indicator + reserved + section_length high
-    payload[index++] = 0x17; // section_length low (23)
-    payload[index++] = (kTSProgramNumber >> 8) & 0xFF;
-    payload[index++] = kTSProgramNumber & 0xFF;
-    payload[index++] = 0xC1; // version_number + current_next_indicator
-    payload[index++] = 0x00; // section_number
-    payload[index++] = 0x00; // last_section_number
-    payload[index++] = 0xE0 | ((kTSVideoPid >> 8) & 0x1F); // PCR PID
-    payload[index++] = kTSVideoPid & 0xFF;
-    payload[index++] = 0xF0; // program_info_length high
-    payload[index++] = 0x00; // program_info_length low
-    payload[index++] = 0x1B; // stream_type H.264
-    payload[index++] = 0xE0 | ((kTSVideoPid >> 8) & 0x1F);
-    payload[index++] = kTSVideoPid & 0xFF;
-    payload[index++] = 0xF0; // ES_info_length high
-    payload[index++] = 0x00; // ES_info_length low
+    section[index++] = 0x02; // table_id
+    section[index++] = 0xB0; // section_syntax_indicator + reserved + section_length high
+    section[index++] = 0x00; // section_length low (filled later)
+    section[index++] = (kTSProgramNumber >> 8) & 0xFF;
+    section[index++] = kTSProgramNumber & 0xFF;
+    section[index++] = 0xC1; // version_number + current_next_indicator
+    section[index++] = 0x00; // section_number
+    section[index++] = 0x00; // last_section_number
+    section[index++] = 0xE0 | ((kTSVideoPid >> 8) & 0x1F); // PCR PID
+    section[index++] = kTSVideoPid & 0xFF;
+    section[index++] = 0xF0; // program_info_length high
+    section[index++] = 0x00; // program_info_length low
+    section[index++] = 0x1B; // stream_type H.264
+    section[index++] = 0xE0 | ((kTSVideoPid >> 8) & 0x1F);
+    section[index++] = kTSVideoPid & 0xFF;
+    section[index++] = 0xF0; // ES_info_length high
+    section[index++] = 0x00; // ES_info_length low
 
-    uint32_t crc = mpegCrc32(payload, index);
-    payload[index++] = (crc >> 24) & 0xFF;
-    payload[index++] = (crc >> 16) & 0xFF;
-    payload[index++] = (crc >> 8) & 0xFF;
-    payload[index++] = crc & 0xFF;
+    size_t sectionLength = (index - 3) + 4;
+    section[1] = 0xB0 | ((sectionLength >> 8) & 0x0F);
+    section[2] = sectionLength & 0xFF;
+
+    uint32_t crc = mpegCrc32(section, index);
+    section[index++] = (crc >> 24) & 0xFF;
+    section[index++] = (crc >> 16) & 0xFF;
+    section[index++] = (crc >> 8) & 0xFF;
+    section[index++] = crc & 0xFF;
 
     uint8_t packet[188] = {0};
     packet[0] = 0x47;
     packet[1] = 0x40 | ((kTSPmtPid >> 8) & 0x1F);
     packet[2] = kTSPmtPid & 0xFF;
-    packet[3] = 0x10;
+    packet[3] = 0x10 | (continuityCounter & 0x0F);
     packet[4] = 0x00; // pointer_field
-    memcpy(packet + 5, payload, index);
+    memcpy(packet + 5, section, index);
     memset(packet + 5 + index, 0xFF, 188 - 5 - index);
     return [NSData dataWithBytes:packet length:sizeof(packet)];
 }
 
-static void writeTSPackets(int socketFd, uint16_t pid, const uint8_t *payload, size_t payloadLength, bool payloadStart, uint8_t *continuityCounter) {
+static void writeTSPackets(int socketFd, uint16_t pid, const uint8_t *payload, size_t payloadLength, bool payloadStart, bool addPCR, uint64_t pcrBase, uint8_t *continuityCounter) {
     size_t offset = 0;
     while (offset < payloadLength) {
         uint8_t packet[188] = {0};
+        bool isFirst = payloadStart && (offset == 0);
+        bool includePCR = addPCR && isFirst;
+        size_t adaptationLength = 0;
         packet[0] = 0x47;
-        packet[1] = ((payloadStart ? 0x40 : 0x00) | ((pid >> 8) & 0x1F));
+        packet[1] = ((isFirst ? 0x40 : 0x00) | ((pid >> 8) & 0x1F));
         packet[2] = pid & 0xFF;
-        packet[3] = 0x10 | (*continuityCounter & 0x0F);
+        packet[3] = (*continuityCounter & 0x0F);
         (*continuityCounter) = ((*continuityCounter) + 1) & 0x0F;
 
         size_t payloadCapacity = 184;
         size_t remaining = payloadLength - offset;
         size_t toCopy = remaining < payloadCapacity ? remaining : payloadCapacity;
-        memcpy(packet + 4, payload + offset, toCopy);
-        if (toCopy < payloadCapacity) {
-            memset(packet + 4 + toCopy, 0xFF, payloadCapacity - toCopy);
+
+        if (includePCR || toCopy < payloadCapacity) {
+            packet[3] |= 0x30; // adaptation + payload
+            uint8_t *adapt = packet + 4;
+            size_t adaptIndex = 2;
+            adapt[1] = includePCR ? 0x10 : 0x00;
+            if (includePCR) {
+                uint64_t pcr = pcrBase * 300;
+                adapt[2] = (pcr >> 25) & 0xFF;
+                adapt[3] = (pcr >> 17) & 0xFF;
+                adapt[4] = (pcr >> 9) & 0xFF;
+                adapt[5] = (pcr >> 1) & 0xFF;
+                adapt[6] = ((pcr & 0x1) << 7) | 0x7E;
+                adapt[7] = 0x00;
+                adaptIndex = 8;
+            }
+
+            size_t payloadRoom = payloadCapacity - (1 + adaptIndex);
+            if (toCopy > payloadRoom) {
+                toCopy = payloadRoom;
+            }
+            adaptationLength = (size_t)(adaptIndex - 1);
+            size_t stuffing = payloadCapacity - (adaptIndex + toCopy);
+            adaptationLength += stuffing;
+            adapt[0] = (uint8_t)adaptationLength;
+            memset(adapt + adaptIndex, 0xFF, stuffing);
+            memcpy(packet + 4 + 1 + adaptationLength, payload + offset, toCopy);
+        } else {
+            packet[3] |= 0x10; // payload only
+            memcpy(packet + 4, payload + offset, toCopy);
         }
+
         sendAll(socketFd, packet, sizeof(packet));
         offset += toCopy;
-        payloadStart = false;
     }
 }
 
@@ -302,6 +341,8 @@ static void streamLoop(int clientSocket) {
     }
 
     int64_t frameIndex = 0;
+    uint8_t patContinuity = 0;
+    uint8_t pmtContinuity = 0;
     uint8_t videoContinuity = 0;
     bool sentTables = false;
     while (clientSocket >= 0) {
@@ -319,8 +360,8 @@ static void streamLoop(int clientSocket) {
         }
 
         if (!sentTables || context.isKeyframe) {
-            NSData *pat = buildPATPacket();
-            NSData *pmt = buildPMTPacket();
+            NSData *pat = buildPATPacket(patContinuity++);
+            NSData *pmt = buildPMTPacket(pmtContinuity++);
             sendAll(clientSocket, (const uint8_t *)pat.bytes, pat.length);
             sendAll(clientSocket, (const uint8_t *)pmt.bytes, pmt.length);
             sentTables = true;
@@ -346,7 +387,8 @@ static void streamLoop(int clientSocket) {
 
         NSMutableData *pesPayload = [NSMutableData dataWithBytes:pesHeader length:pesIndex];
         [pesPayload appendData:context.encodedData];
-        writeTSPackets(clientSocket, kTSVideoPid, (const uint8_t *)pesPayload.bytes, pesPayload.length, true, &videoContinuity);
+        bool addPCR = (frameIndex % kPCRIntervalFrames) == 0;
+        writeTSPackets(clientSocket, kTSVideoPid, (const uint8_t *)pesPayload.bytes, pesPayload.length, true, addPCR, pts, &videoContinuity);
 
         if (clientSocket < 0) {
             break;
