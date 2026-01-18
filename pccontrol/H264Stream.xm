@@ -200,7 +200,7 @@ static void streamLoop(int clientSocket) {
             break;
         }
 
-        if (!sendAll(clientSocket, encoded.bytes, encoded.length)) {
+        if (!sendAll(clientSocket, (const uint8_t *)encoded.bytes, encoded.length)) {
             break;
         }
         frameIndex++;
