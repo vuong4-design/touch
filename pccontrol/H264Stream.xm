@@ -321,8 +321,8 @@ static void streamLoop(int clientSocket) {
         if (!sentTables || context.isKeyframe) {
             NSData *pat = buildPATPacket();
             NSData *pmt = buildPMTPacket();
-            sendAll(clientSocket, pat.bytes, pat.length);
-            sendAll(clientSocket, pmt.bytes, pmt.length);
+            sendAll(clientSocket, (const uint8_t *)pat.bytes, pat.length);
+            sendAll(clientSocket, (const uint8_t *)pmt.bytes, pmt.length);
             sentTables = true;
         }
 
@@ -346,7 +346,7 @@ static void streamLoop(int clientSocket) {
 
         NSMutableData *pesPayload = [NSMutableData dataWithBytes:pesHeader length:pesIndex];
         [pesPayload appendData:context.encodedData];
-        writeTSPackets(clientSocket, kTSVideoPid, pesPayload.bytes, pesPayload.length, true, &videoContinuity);
+        writeTSPackets(clientSocket, kTSVideoPid, (const uint8_t *)pesPayload.bytes, pesPayload.length, true, &videoContinuity);
 
         if (clientSocket < 0) {
             break;
