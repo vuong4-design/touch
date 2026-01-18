@@ -15,7 +15,7 @@ pccontrol_LDFLAGS += -F$(THEOS_PROJECT_DIR)/frameworks
 pccontrol_CFLAGS += -I$(THEOS_PROJECT_DIR)/frameworks/opencv2.framework/Versions/A/Headers
 pccontrol_CCFLAGS += -I$(THEOS_PROJECT_DIR)/frameworks/opencv2.framework/Versions/A/Headers
 
-pccontrol_PRIVATE_FRAMEWORKS = IOKit
+pccontrol_PRIVATE_FRAMEWORKS = IOKit MobileCoreServices
 pccontrol_EXTRA_FRAMEWORKS = opencv2
 pccontrol_LIBRARIES = substrate
 
