@@ -117,7 +117,7 @@ static NSData *encodeFrame(VTCompressionSessionRef session, CGImageRef image, CM
     ZXTH264EncoderContext *context = [[ZXTH264EncoderContext alloc] init];
     context.encodedData = [NSMutableData data];
     context.semaphore = dispatch_semaphore_create(0);
-    CFTypeRef contextRef = CFBridgingRetain(context);
+    void *contextRef = (void *)CFBridgingRetain(context);
 
     size_t width = kH264TargetWidth;
     size_t height = kH264TargetHeight;
@@ -130,7 +130,7 @@ static NSData *encodeFrame(VTCompressionSessionRef session, CGImageRef image, CM
     OSStatus status = VTCompressionSessionEncodeFrame(session, pixelBuffer, frameTime, kCMTimeInvalid, NULL, contextRef, &flags);
     CVPixelBufferRelease(pixelBuffer);
     if (status != noErr) {
-        CFRelease(contextRef);
+        CFRelease((CFTypeRef)contextRef);
         return nil;
     }
 
