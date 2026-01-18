@@ -399,6 +399,7 @@ static void streamLoop(int clientSocket) {
 
     VTCompressionSessionInvalidate(encoder);
     CFRelease(encoder);
+    shutdown(clientSocket, SHUT_RDWR);
     close(clientSocket);
 }
 
@@ -411,6 +412,8 @@ void startH264StreamServer(void) {
 
         int reuse = 1;
         setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+        int reusePort = 1;
+        setsockopt(serverSocket, SOL_SOCKET, SO_REUSEPORT, &reusePort, sizeof(reusePort));
 
         struct sockaddr_in addr;
         memset(&addr, 0, sizeof(addr));
