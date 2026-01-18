@@ -16,10 +16,6 @@
 #import "TableViewCellWithSlider.h"
 #import "TableViewCellWithEntry.h"
 
-#import "GCDWebServer.h"
-#import "GCDWebServerDataResponse.h"
-#import "GCDWebServerStreamedResponse.h"
-
 #import "libactivator.h"
 #import <dlfcn.h>
 #import <objc/runtime.h>
@@ -29,17 +25,7 @@
 #define SETTING_CELL_SWITCH 0
 #define SETTING_CELL_ENTRY 1
 
-static const NSUInteger kZXTouchWebServerPort = 8080;
-static const int kZXTouchTaskScreenshot = 29;
-static const int kZXTouchScreenshotActionCapture = 1;
-static NSString *const kZXTouchWebServerSnapshotDirectory = @"/var/mobile/Library/ZXTouch/websnapshots";
-static NSString *const kZXTouchWebServerStreamBoundary = @"zxtouch-frame";
-
-
 @interface SettingsPageViewController ()
-{
-    GCDWebServer* _webServer;
-}
 @end
 
 @implementation SettingsPageViewController
@@ -150,145 +136,12 @@ static NSString *const kZXTouchWebServerStreamBoundary = @"zxtouch-frame";
 - (void)handleWebServerWithSwitchCellInstance:(UISwitch*)s {
     if ([s isOn])
     {
-        if (_webServer && _webServer.isRunning)
-        {
-            return;
-        }
-
-        _webServer = [[GCDWebServer alloc] init];
-
-        __weak typeof(self) weakSelf = self;
-        [_webServer addHandlerForMethod:@"GET"
-                                   path:@"/"
-                           requestClass:[GCDWebServerRequest class]
-                           processBlock:^GCDWebServerResponse *(GCDWebServerRequest *request) {
-            NSString *html = [NSString stringWithFormat:@"<html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /></head><body style=\"margin:0;background:#000\"><img src=\"/stream\" style=\"width:100%%;height:auto;display:block;\" /></body></html>"];
-            return [GCDWebServerDataResponse responseWithHTML:html];
-        }];
-
-        [_webServer addHandlerForMethod:@"GET"
-                                   path:@"/snapshot"
-                           requestClass:[GCDWebServerRequest class]
-                           processBlock:^GCDWebServerResponse *(GCDWebServerRequest *request) {
-            __strong typeof(weakSelf) strongSelf = weakSelf;
-            NSError *error = nil;
-            NSData *snapshotData = [strongSelf captureScreenshotPNGWithError:&error];
-            if (!snapshotData)
-            {
-                return [GCDWebServerDataResponse responseWithStatusCode:500];
-            }
-            GCDWebServerDataResponse *response = [GCDWebServerDataResponse responseWithData:snapshotData contentType:@"image/png"];
-            response.cacheControlMaxAge = 0;
-            return response;
-        }];
-
-        [_webServer addHandlerForMethod:@"GET"
-                                   path:@"/stream"
-                           requestClass:[GCDWebServerRequest class]
-                           processBlock:^GCDWebServerResponse *(GCDWebServerRequest *request) {
-            GCDWebServerStreamedResponse *response = [GCDWebServerStreamedResponse responseWithContentType:[NSString stringWithFormat:@"multipart/x-mixed-replace; boundary=%@", kZXTouchWebServerStreamBoundary]
-                                                                                                 asyncStreamBlock:^(GCDWebServerBodyReaderCompletionBlock completionBlock) {
-                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.15 * NSEC_PER_SEC)), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-                    __strong typeof(weakSelf) strongSelf = weakSelf;
-                    if (!strongSelf)
-                    {
-                        completionBlock(nil, nil);
-                        return;
-                    }
-                    NSError *streamError = nil;
-                    NSData *snapshotData = [strongSelf captureScreenshotPNGWithError:&streamError];
-                    if (!snapshotData)
-                    {
-                        completionBlock(nil, streamError);
-                        return;
-                    }
-                    NSMutableData *frameData = [NSMutableData data];
-                    NSString *header = [NSString stringWithFormat:@"--%@\r\nContent-Type: image/png\r\nContent-Length: %lu\r\n\r\n", kZXTouchWebServerStreamBoundary, (unsigned long)snapshotData.length];
-                    [frameData appendData:[header dataUsingEncoding:NSUTF8StringEncoding]];
-                    [frameData appendData:snapshotData];
-                    [frameData appendData:[@"\r\n" dataUsingEncoding:NSUTF8StringEncoding]];
-                    completionBlock(frameData, nil);
-                });
-            }];
-            response.cacheControlMaxAge = 0;
-            return response;
-        }];
-
-        if (![_webServer startWithPort:kZXTouchWebServerPort bonjourName:nil])
-        {
-            [Util showAlertBoxWithOneOption:self title:@"ZXTouch" message:@"Failed to start web server." buttonString:@"OK"];
-            [s setOn:NO];
-            _webServer = nil;
-            return;
-        }
-
-        NSString *urlString = _webServer.serverURL.absoluteString ?: [NSString stringWithFormat:@"http://127.0.0.1:%lu/", (unsigned long)kZXTouchWebServerPort];
-        [Util showAlertBoxWithOneOption:self title:@"ZXTouch" message:[NSString stringWithFormat:@"Web server started: %@", urlString] buttonString:@"OK"];
+        [Util showAlertBoxWithOneOption:self
+                                  title:@"ZXTouch"
+                                message:@"H.264 stream is available on port 7001 (raw Annex B). Use an H.264-capable client to connect."
+                           buttonString:@"OK"];
+        [s setOn:NO];
     }
-    else
-    {
-        if (_webServer)
-        {
-            [_webServer stop];
-            _webServer = nil;
-        }
-    }
-}
-
-- (NSData *)captureScreenshotPNGWithError:(NSError **)error
-{
-    NSError *directoryError = nil;
-    [[NSFileManager defaultManager] createDirectoryAtPath:kZXTouchWebServerSnapshotDirectory
-                              withIntermediateDirectories:YES
-                                               attributes:nil
-                                                    error:&directoryError];
-    if (directoryError)
-    {
-        if (error)
-        {
-            *error = directoryError;
-        }
-        return nil;
-    }
-
-    NSString *fileName = [NSString stringWithFormat:@"snapshot-%@.png", [[NSUUID UUID] UUIDString]];
-    NSString *filePath = [kZXTouchWebServerSnapshotDirectory stringByAppendingPathComponent:fileName];
-
-    Socket *socket = [[Socket alloc] init];
-    if ([socket connect:@"127.0.0.1" byPort:6000] != 0)
-    {
-        if (error)
-        {
-            *error = [NSError errorWithDomain:@"com.zjx.zxtouch" code:500 userInfo:@{NSLocalizedDescriptionKey: @"Failed to connect to ZXTouch socket."}];
-        }
-        return nil;
-    }
-
-    NSString *command = [NSString stringWithFormat:@"%02d%d;;%@\r\n", kZXTouchTaskScreenshot, kZXTouchScreenshotActionCapture, filePath];
-    [socket send:command];
-    NSString *response = [socket recv:1024];
-    [socket close];
-
-    if (![response hasPrefix:@"0"])
-    {
-        if (error)
-        {
-            *error = [NSError errorWithDomain:@"com.zjx.zxtouch" code:500 userInfo:@{NSLocalizedDescriptionKey: @"ZXTouch screenshot task failed."}];
-        }
-        return nil;
-    }
-
-    NSArray *parts = [response componentsSeparatedByString:@";;"];
-    NSString *returnedPath = nil;
-    if (parts.count >= 2)
-    {
-        returnedPath = [parts[1] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    }
-
-    NSString *finalPath = returnedPath.length > 0 ? returnedPath : filePath;
-    NSData *snapshotData = [NSData dataWithContentsOfFile:finalPath options:0 error:error];
-    [[NSFileManager defaultManager] removeItemAtPath:finalPath error:nil];
-    return snapshotData;
 }
 
 - (void)handleActivatorWithEntryCellInstance:(TableViewCellWithEntry*)cell {
