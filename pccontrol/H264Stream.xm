@@ -37,6 +37,7 @@ static void H264OutputCallback(void *outputCallbackRefCon,
     ZXTH264EncoderContext *context = (__bridge ZXTH264EncoderContext *)sourceFrameRefCon;
     if (status != noErr || !sampleBuffer || !CMSampleBufferDataIsReady(sampleBuffer)) {
         dispatch_semaphore_signal(context.semaphore);
+        CFRelease(sourceFrameRefCon);
         return;
     }
 
@@ -82,6 +83,7 @@ static void H264OutputCallback(void *outputCallbackRefCon,
     }
 
     dispatch_semaphore_signal(context.semaphore);
+    CFRelease(sourceFrameRefCon);
 }
 
 static CVPixelBufferRef createPixelBufferFromCGImage(CGImageRef image, size_t width, size_t height) {
@@ -114,6 +116,7 @@ static NSData *encodeFrame(VTCompressionSessionRef session, CGImageRef image, CM
     ZXTH264EncoderContext *context = [[ZXTH264EncoderContext alloc] init];
     context.encodedData = [NSMutableData data];
     context.semaphore = dispatch_semaphore_create(0);
+    void *contextRef = CFBridgingRetain(context);
 
     size_t width = kH264TargetWidth;
     size_t height = kH264TargetHeight;
@@ -123,9 +126,10 @@ static NSData *encodeFrame(VTCompressionSessionRef session, CGImageRef image, CM
     }
 
     VTEncodeInfoFlags flags = 0;
-    OSStatus status = VTCompressionSessionEncodeFrame(session, pixelBuffer, frameTime, kCMTimeInvalid, NULL, (__bridge void *)context, &flags);
+    OSStatus status = VTCompressionSessionEncodeFrame(session, pixelBuffer, frameTime, kCMTimeInvalid, NULL, contextRef, &flags);
     CVPixelBufferRelease(pixelBuffer);
     if (status != noErr) {
+        CFRelease(contextRef);
         return nil;
     }
 
