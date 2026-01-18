@@ -13,6 +13,7 @@ static const int kH264StreamPort = 7001;
 static const int kH264TargetWidth = 1280;
 static const int kH264TargetHeight = 720;
 static const int kH264TargetFPS = 20;
+static const int kH264KeyframeIntervalSeconds = 2;
 
 @interface ZXTH264EncoderContext : NSObject
 @property(nonatomic, strong) NSMutableData *encodedData;
@@ -87,6 +88,18 @@ static void H264OutputCallback(void *outputCallbackRefCon,
     dispatch_semaphore_signal(context.semaphore);
 }
 
+static bool sendAll(int socketFd, const uint8_t *buffer, size_t length) {
+    size_t sent = 0;
+    while (sent < length) {
+        ssize_t result = send(socketFd, buffer + sent, length - sent, 0);
+        if (result <= 0) {
+            return false;
+        }
+        sent += (size_t)result;
+    }
+    return true;
+}
+
 static CVPixelBufferRef createPixelBufferFromCGImage(CGImageRef image, size_t width, size_t height) {
     NSDictionary *attributes = @{
         (id)kCVPixelBufferCGImageCompatibilityKey : @YES,
@@ -155,8 +168,10 @@ static VTCompressionSessionRef createEncoder(void) {
     }
 
     VTSessionSetProperty(session, kVTCompressionPropertyKey_RealTime, kCFBooleanTrue);
-    VTSessionSetProperty(session, kVTCompressionPropertyKey_ProfileLevel, kVTProfileLevel_H264_Main_AutoLevel);
-    VTSessionSetProperty(session, kVTCompressionPropertyKey_MaxKeyFrameInterval, (__bridge CFTypeRef)@(kH264TargetFPS * 2));
+    VTSessionSetProperty(session, kVTCompressionPropertyKey_ProfileLevel, kVTProfileLevel_H264_Baseline_AutoLevel);
+    VTSessionSetProperty(session, kVTCompressionPropertyKey_AllowFrameReordering, kCFBooleanFalse);
+    VTSessionSetProperty(session, kVTCompressionPropertyKey_MaxKeyFrameInterval, (__bridge CFTypeRef)@(kH264TargetFPS * kH264KeyframeIntervalSeconds));
+    VTSessionSetProperty(session, kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, (__bridge CFTypeRef)@(kH264KeyframeIntervalSeconds));
     VTSessionSetProperty(session, kVTCompressionPropertyKey_ExpectedFrameRate, (__bridge CFTypeRef)@(kH264TargetFPS));
     VTSessionSetProperty(session, kVTCompressionPropertyKey_AverageBitRate, (__bridge CFTypeRef)@(2000000));
     VTCompressionSessionPrepareToEncodeFrames(session);
@@ -185,8 +200,7 @@ static void streamLoop(int clientSocket) {
             break;
         }
 
-        ssize_t wrote = send(clientSocket, encoded.bytes, encoded.length, 0);
-        if (wrote <= 0) {
+        if (!sendAll(clientSocket, encoded.bytes, encoded.length)) {
             break;
         }
         frameIndex++;
