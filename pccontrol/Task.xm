@@ -13,6 +13,7 @@
 #include "TouchIndicator/TouchIndicatorWindow.h"
 #include "HardwareKey.h"
 #include "Scheduler.h"
+#include "RuntimeUtils.h"
 #import <mach/mach.h>
 #include <Foundation/NSDistributedNotificationCenter.h>
 #include <TextRecognization/TextRecognizer.h>
@@ -470,6 +471,57 @@ void processTask(UInt8 *buff, CFWriteStreamRef writeStreamRef)
             {
                 notifyClient((UInt8*)"0\r\n", writeStreamRef);
             }
+        }
+    }
+    else if (taskType == TASK_DIALOG)
+    {
+        @autoreleasepool {
+            NSError *err = nil;
+            NSString *response = dialogFromRawData(eventData, &err);
+            if (err)
+            {
+                notifyClient((UInt8*)[[err localizedDescription] UTF8String], writeStreamRef);
+            }
+            else
+            {
+                notifyClient((UInt8*)[[NSString stringWithFormat:@"0;;%@\r\n", response ?: @""] UTF8String], writeStreamRef);
+            }
+        }
+    }
+    else if (taskType == TASK_CLEAR_DIALOG)
+    {
+        @autoreleasepool {
+            NSError *err = nil;
+            clearDialogValues(&err);
+            if (err)
+            {
+                notifyClient((UInt8*)[[err localizedDescription] UTF8String], writeStreamRef);
+            }
+            else
+            {
+                notifyClient((UInt8*)"0\r\n", writeStreamRef);
+            }
+        }
+    }
+    else if (taskType == TASK_ROOT_DIR)
+    {
+        @autoreleasepool {
+            NSString *path = rootDirValue();
+            notifyClient((UInt8*)[[NSString stringWithFormat:@"0;;%@\r\n", path] UTF8String], writeStreamRef);
+        }
+    }
+    else if (taskType == TASK_CURRENT_DIR)
+    {
+        @autoreleasepool {
+            NSString *path = currentDirValue();
+            notifyClient((UInt8*)[[NSString stringWithFormat:@"0;;%@\r\n", path] UTF8String], writeStreamRef);
+        }
+    }
+    else if (taskType == TASK_BOT_PATH)
+    {
+        @autoreleasepool {
+            NSString *path = botPathValue();
+            notifyClient((UInt8*)[[NSString stringWithFormat:@"0;;%@\r\n", path] UTF8String], writeStreamRef);
         }
     }
     else if (taskType == TASK_SCREENSHOT)

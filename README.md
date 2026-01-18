@@ -160,6 +160,8 @@ device = zxtouch("127.0.0.1") # create instance
 
 [Scheduling](#scheduling)
 
+[Runtime Utilities](#runtime-utilities)
+
 [Toast](#toast)
 
 [Color Picker (RGB Value From A Point on Screen)](#color-picker-rgb-value-from-a-point-on-screen)
@@ -362,6 +364,37 @@ Return value notes:
 
 * All scheduling calls return `(success, value_or_error)`.
 * `list_auto_launch` returns a list of dictionaries with `name`, `script`, `enabled`.
+
+## Runtime Utilities
+
+Dialog, path helpers, and stored dialog values.
+
+```python
+def dialog(options):
+	"""Show a dialog.
+
+	Args:
+		options: dict with keys title, message, ok, cancel.
+	Returns:
+		Result tuple: (success?, error_message/response_index)
+	"""
+
+def clear_dialog_values():
+	"""Clear stored dialog values."""
+
+def root_dir():
+	"""Get root directory path."""
+
+def current_dir():
+	"""Get current directory path."""
+
+def bot_path():
+	"""Get scripts folder path."""
+```
+
+Return value notes:
+
+* All runtime utility calls return `(success, value_or_error)`.
 
 ## Bring Application to Foreground
 
