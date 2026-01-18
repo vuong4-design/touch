@@ -91,7 +91,7 @@ static void H264OutputCallback(void *outputCallbackRefCon,
 static bool sendAll(int socketFd, const uint8_t *buffer, size_t length) {
     size_t sent = 0;
     while (sent < length) {
-        ssize_t result = send(socketFd, buffer + sent, length - sent, 0);
+        ssize_t result = send(socketFd, buffer + sent, length - sent, MSG_NOSIGNAL);
         if (result <= 0) {
             return false;
         }
@@ -243,6 +243,8 @@ void startH264StreamServer(void) {
             if (clientSocket < 0) {
                 continue;
             }
+            int noSigPipe = 1;
+            setsockopt(clientSocket, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, sizeof(noSigPipe));
             streamLoop(clientSocket);
         }
     });
