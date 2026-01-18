@@ -14,10 +14,15 @@ static const int kH264TargetWidth = 1280;
 static const int kH264TargetHeight = 720;
 static const int kH264TargetFPS = 20;
 static const int kH264KeyframeIntervalSeconds = 2;
+static const uint16_t kTSVideoPid = 0x0100;
+static const uint16_t kTSPatPid = 0x0000;
+static const uint16_t kTSPmtPid = 0x1000;
+static const uint16_t kTSProgramNumber = 1;
 
 @interface ZXTH264EncoderContext : NSObject
 @property(nonatomic, strong) NSMutableData *encodedData;
 @property(nonatomic) dispatch_semaphore_t semaphore;
+@property(nonatomic) BOOL isKeyframe;
 @end
 
 @implementation ZXTH264EncoderContext
@@ -51,6 +56,7 @@ static void H264OutputCallback(void *outputCallbackRefCon,
         BOOL notSync = CFDictionaryContainsKey(attachment, kCMSampleAttachmentKey_NotSync);
         isKeyframe = !notSync;
     }
+    context.isKeyframe = isKeyframe;
 
     CMFormatDescriptionRef formatDesc = CMSampleBufferGetFormatDescription(sampleBuffer);
     if (isKeyframe && formatDesc) {
@@ -100,6 +106,115 @@ static bool sendAll(int socketFd, const uint8_t *buffer, size_t length) {
     return true;
 }
 
+static uint32_t mpegCrc32(const uint8_t *data, size_t length) {
+    uint32_t crc = 0xFFFFFFFF;
+    for (size_t i = 0; i < length; i++) {
+        crc ^= (uint32_t)data[i] << 24;
+        for (int bit = 0; bit < 8; bit++) {
+            if (crc & 0x80000000) {
+                crc = (crc << 1) ^ 0x04C11DB7;
+            } else {
+                crc <<= 1;
+            }
+        }
+    }
+    return crc;
+}
+
+static NSData *buildPATPacket(void) {
+    uint8_t payload[17] = {0};
+    size_t index = 0;
+    payload[index++] = 0x00; // table_id
+    payload[index++] = 0xB0; // section_syntax_indicator + reserved + section_length high
+    payload[index++] = 0x0D; // section_length low (13)
+    payload[index++] = (kTSProgramNumber >> 8) & 0xFF;
+    payload[index++] = kTSProgramNumber & 0xFF;
+    payload[index++] = 0xC1; // version_number + current_next_indicator
+    payload[index++] = 0x00; // section_number
+    payload[index++] = 0x00; // last_section_number
+    payload[index++] = (kTSProgramNumber >> 8) & 0xFF;
+    payload[index++] = kTSProgramNumber & 0xFF;
+    payload[index++] = 0xE0 | ((kTSPmtPid >> 8) & 0x1F);
+    payload[index++] = kTSPmtPid & 0xFF;
+
+    uint32_t crc = mpegCrc32(payload, index);
+    payload[index++] = (crc >> 24) & 0xFF;
+    payload[index++] = (crc >> 16) & 0xFF;
+    payload[index++] = (crc >> 8) & 0xFF;
+    payload[index++] = crc & 0xFF;
+
+    uint8_t packet[188] = {0};
+    packet[0] = 0x47;
+    packet[1] = 0x40 | ((kTSPatPid >> 8) & 0x1F);
+    packet[2] = kTSPatPid & 0xFF;
+    packet[3] = 0x10;
+    packet[4] = 0x00; // pointer_field
+    memcpy(packet + 5, payload, index);
+    memset(packet + 5 + index, 0xFF, 188 - 5 - index);
+    return [NSData dataWithBytes:packet length:sizeof(packet)];
+}
+
+static NSData *buildPMTPacket(void) {
+    uint8_t payload[32] = {0};
+    size_t index = 0;
+    payload[index++] = 0x02; // table_id
+    payload[index++] = 0xB0; // section_syntax_indicator + reserved + section_length high
+    payload[index++] = 0x17; // section_length low (23)
+    payload[index++] = (kTSProgramNumber >> 8) & 0xFF;
+    payload[index++] = kTSProgramNumber & 0xFF;
+    payload[index++] = 0xC1; // version_number + current_next_indicator
+    payload[index++] = 0x00; // section_number
+    payload[index++] = 0x00; // last_section_number
+    payload[index++] = 0xE0 | ((kTSVideoPid >> 8) & 0x1F); // PCR PID
+    payload[index++] = kTSVideoPid & 0xFF;
+    payload[index++] = 0xF0; // program_info_length high
+    payload[index++] = 0x00; // program_info_length low
+    payload[index++] = 0x1B; // stream_type H.264
+    payload[index++] = 0xE0 | ((kTSVideoPid >> 8) & 0x1F);
+    payload[index++] = kTSVideoPid & 0xFF;
+    payload[index++] = 0xF0; // ES_info_length high
+    payload[index++] = 0x00; // ES_info_length low
+
+    uint32_t crc = mpegCrc32(payload, index);
+    payload[index++] = (crc >> 24) & 0xFF;
+    payload[index++] = (crc >> 16) & 0xFF;
+    payload[index++] = (crc >> 8) & 0xFF;
+    payload[index++] = crc & 0xFF;
+
+    uint8_t packet[188] = {0};
+    packet[0] = 0x47;
+    packet[1] = 0x40 | ((kTSPmtPid >> 8) & 0x1F);
+    packet[2] = kTSPmtPid & 0xFF;
+    packet[3] = 0x10;
+    packet[4] = 0x00; // pointer_field
+    memcpy(packet + 5, payload, index);
+    memset(packet + 5 + index, 0xFF, 188 - 5 - index);
+    return [NSData dataWithBytes:packet length:sizeof(packet)];
+}
+
+static void writeTSPackets(int socketFd, uint16_t pid, const uint8_t *payload, size_t payloadLength, bool payloadStart, uint8_t *continuityCounter) {
+    size_t offset = 0;
+    while (offset < payloadLength) {
+        uint8_t packet[188] = {0};
+        packet[0] = 0x47;
+        packet[1] = ((payloadStart ? 0x40 : 0x00) | ((pid >> 8) & 0x1F));
+        packet[2] = pid & 0xFF;
+        packet[3] = 0x10 | (*continuityCounter & 0x0F);
+        (*continuityCounter) = ((*continuityCounter) + 1) & 0x0F;
+
+        size_t payloadCapacity = 184;
+        size_t remaining = payloadLength - offset;
+        size_t toCopy = remaining < payloadCapacity ? remaining : payloadCapacity;
+        memcpy(packet + 4, payload + offset, toCopy);
+        if (toCopy < payloadCapacity) {
+            memset(packet + 4 + toCopy, 0xFF, payloadCapacity - toCopy);
+        }
+        sendAll(socketFd, packet, sizeof(packet));
+        offset += toCopy;
+        payloadStart = false;
+    }
+}
+
 static CVPixelBufferRef createPixelBufferFromCGImage(CGImageRef image, size_t width, size_t height) {
     NSDictionary *attributes = @{
         (id)kCVPixelBufferCGImageCompatibilityKey : @YES,
@@ -126,7 +241,7 @@ static CVPixelBufferRef createPixelBufferFromCGImage(CGImageRef image, size_t wi
     return pixelBuffer;
 }
 
-static NSData *encodeFrame(VTCompressionSessionRef session, CGImageRef image, CMTime frameTime) {
+static ZXTH264EncoderContext *encodeFrame(VTCompressionSessionRef session, CGImageRef image, CMTime frameTime) {
     ZXTH264EncoderContext *context = [[ZXTH264EncoderContext alloc] init];
     context.encodedData = [NSMutableData data];
     context.semaphore = dispatch_semaphore_create(0);
@@ -136,6 +251,7 @@ static NSData *encodeFrame(VTCompressionSessionRef session, CGImageRef image, CM
     size_t height = kH264TargetHeight;
     CVPixelBufferRef pixelBuffer = createPixelBufferFromCGImage(image, width, height);
     if (!pixelBuffer) {
+        CFRelease((CFTypeRef)contextRef);
         return nil;
     }
 
@@ -148,7 +264,7 @@ static NSData *encodeFrame(VTCompressionSessionRef session, CGImageRef image, CM
     }
 
     dispatch_semaphore_wait(context.semaphore, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)));
-    return context.encodedData;
+    return context;
 }
 
 static VTCompressionSessionRef createEncoder(void) {
@@ -186,6 +302,8 @@ static void streamLoop(int clientSocket) {
     }
 
     int64_t frameIndex = 0;
+    uint8_t videoContinuity = 0;
+    bool sentTables = false;
     while (clientSocket >= 0) {
         CGImageRef image = [Screen createScreenShotCGImageRef];
         if (!image) {
@@ -193,14 +311,44 @@ static void streamLoop(int clientSocket) {
         }
 
         CMTime frameTime = CMTimeMake(frameIndex, kH264TargetFPS);
-        NSData *encoded = encodeFrame(encoder, image, frameTime);
+        ZXTH264EncoderContext *context = encodeFrame(encoder, image, frameTime);
         CGImageRelease(image);
 
-        if (!encoded || encoded.length == 0) {
+        if (!context || context.encodedData.length == 0) {
             break;
         }
 
-        if (!sendAll(clientSocket, (const uint8_t *)encoded.bytes, encoded.length)) {
+        if (!sentTables || context.isKeyframe) {
+            NSData *pat = buildPATPacket();
+            NSData *pmt = buildPMTPacket();
+            sendAll(clientSocket, pat.bytes, pat.length);
+            sendAll(clientSocket, pmt.bytes, pmt.length);
+            sentTables = true;
+        }
+
+        uint64_t pts = (uint64_t)((frameIndex * 90000) / kH264TargetFPS);
+        uint8_t pesHeader[19] = {0};
+        size_t pesIndex = 0;
+        pesHeader[pesIndex++] = 0x00;
+        pesHeader[pesIndex++] = 0x00;
+        pesHeader[pesIndex++] = 0x01;
+        pesHeader[pesIndex++] = 0xE0; // stream_id
+        pesHeader[pesIndex++] = 0x00;
+        pesHeader[pesIndex++] = 0x00; // PES length 0 for video
+        pesHeader[pesIndex++] = 0x80; // '10' + no scrambling
+        pesHeader[pesIndex++] = 0x80; // PTS only
+        pesHeader[pesIndex++] = 0x05; // header length
+        pesHeader[pesIndex++] = 0x21 | ((pts >> 29) & 0x0E);
+        pesHeader[pesIndex++] = (pts >> 22) & 0xFF;
+        pesHeader[pesIndex++] = 0x01 | ((pts >> 14) & 0xFE);
+        pesHeader[pesIndex++] = (pts >> 7) & 0xFF;
+        pesHeader[pesIndex++] = 0x01 | ((pts << 1) & 0xFE);
+
+        NSMutableData *pesPayload = [NSMutableData dataWithBytes:pesHeader length:pesIndex];
+        [pesPayload appendData:context.encodedData];
+        writeTSPackets(clientSocket, kTSVideoPid, pesPayload.bytes, pesPayload.length, true, &videoContinuity);
+
+        if (clientSocket < 0) {
             break;
         }
         frameIndex++;
