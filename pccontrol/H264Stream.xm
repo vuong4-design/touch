@@ -426,7 +426,7 @@ void startH264StreamServer(void) {
             return;
         }
 
-        if (listen(serverSocket, 1) != 0) {
+        if (listen(serverSocket, 5) != 0) {
             close(serverSocket);
             return;
         }
@@ -438,7 +438,9 @@ void startH264StreamServer(void) {
             }
             int noSigPipe = 1;
             setsockopt(clientSocket, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, sizeof(noSigPipe));
-            streamLoop(clientSocket);
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                streamLoop(clientSocket);
+            });
         }
     });
 }
