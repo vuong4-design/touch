@@ -12,6 +12,7 @@
 #include "DeviceInfo.h"
 #include "TouchIndicator/TouchIndicatorWindow.h"
 #include "HardwareKey.h"
+#include "Scheduler.h"
 #import <mach/mach.h>
 #include <Foundation/NSDistributedNotificationCenter.h>
 #include <TextRecognization/TextRecognizer.h>
@@ -379,6 +380,96 @@ void processTask(UInt8 *buff, CFWriteStreamRef writeStreamRef)
         @autoreleasepool {
             NSString *orientation = frontMostAppOrientation();
             notifyClient((UInt8*)[[NSString stringWithFormat:@"0;;%@\r\n", orientation] UTF8String], writeStreamRef);
+        }
+    }
+    else if (taskType == TASK_SET_AUTO_LAUNCH)
+    {
+        @autoreleasepool {
+            NSError *err = nil;
+            setAutoLaunchFromRawData(eventData, &err);
+            if (err)
+            {
+                notifyClient((UInt8*)[[err localizedDescription] UTF8String], writeStreamRef);
+            }
+            else
+            {
+                notifyClient((UInt8*)"0\r\n", writeStreamRef);
+            }
+        }
+    }
+    else if (taskType == TASK_LIST_AUTO_LAUNCH)
+    {
+        @autoreleasepool {
+            NSError *err = nil;
+            NSString *list = listAutoLaunch(&err);
+            if (err)
+            {
+                notifyClient((UInt8*)[[err localizedDescription] UTF8String], writeStreamRef);
+            }
+            else
+            {
+                notifyClient((UInt8*)[[NSString stringWithFormat:@"0;;%@\r\n", list ?: @""] UTF8String], writeStreamRef);
+            }
+        }
+    }
+    else if (taskType == TASK_SET_TIMER)
+    {
+        @autoreleasepool {
+            NSError *err = nil;
+            setTimerFromRawData(eventData, &err);
+            if (err)
+            {
+                notifyClient((UInt8*)[[err localizedDescription] UTF8String], writeStreamRef);
+            }
+            else
+            {
+                notifyClient((UInt8*)"0\r\n", writeStreamRef);
+            }
+        }
+    }
+    else if (taskType == TASK_REMOVE_TIMER)
+    {
+        @autoreleasepool {
+            NSError *err = nil;
+            removeTimerFromRawData(eventData, &err);
+            if (err)
+            {
+                notifyClient((UInt8*)[[err localizedDescription] UTF8String], writeStreamRef);
+            }
+            else
+            {
+                notifyClient((UInt8*)"0\r\n", writeStreamRef);
+            }
+        }
+    }
+    else if (taskType == TASK_KEEP_AWAKE)
+    {
+        @autoreleasepool {
+            NSError *err = nil;
+            keepAwakeFromRawData(eventData, &err);
+            if (err)
+            {
+                notifyClient((UInt8*)[[err localizedDescription] UTF8String], writeStreamRef);
+            }
+            else
+            {
+                notifyClient((UInt8*)"0\r\n", writeStreamRef);
+            }
+        }
+    }
+    else if (taskType == TASK_STOP_SCRIPT)
+    {
+        @autoreleasepool {
+            NSError *err = nil;
+            stopScriptFromRawData(&err);
+            if (err)
+            {
+                notifyClient((UInt8*)[[err localizedDescription] UTF8String], writeStreamRef);
+            }
+            else
+            {
+                notifyClient((UInt8*)"0\r\n", writeStreamRef);
+            }
         }
     }
     else if (taskType == TASK_SCREENSHOT)

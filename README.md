@@ -158,6 +158,8 @@ device = zxtouch("127.0.0.1") # create instance
 
 [App Management](#app-management)
 
+[Scheduling](#scheduling)
+
 [Toast](#toast)
 
 [Color Picker (RGB Value From A Point on Screen)](#color-picker-rgb-value-from-a-point-on-screen)
@@ -331,6 +333,35 @@ Return value notes:
 	* `0`: app not running / not found.
 	* `1`: app running (fallback for older APIs).
 	* any other integer: `SBApplication` processState value when available.
+
+## Scheduling
+
+Manage auto-launch entries, timers, and idle state.
+
+```python
+def set_auto_launch(name, script, enabled):
+	"""Set or update auto-launch entry."""
+
+def list_auto_launch():
+	"""Return a list of entries with name/script/enabled."""
+
+def set_timer(name, interval, repeat, script):
+	"""Schedule a script by timer."""
+
+def remove_timer(name):
+	"""Remove a timer by name."""
+
+def keep_awake(enabled):
+	"""Enable/disable idle timer."""
+
+def stop():
+	"""Stop currently running script safely."""
+```
+
+Return value notes:
+
+* All scheduling calls return `(success, value_or_error)`.
+* `list_auto_launch` returns a list of dictionaries with `name`, `script`, `enabled`.
 
 ## Bring Application to Foreground
 
