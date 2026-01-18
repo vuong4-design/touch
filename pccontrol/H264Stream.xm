@@ -34,10 +34,12 @@ static void H264OutputCallback(void *outputCallbackRefCon,
                                CMSampleBufferRef sampleBuffer) {
     (void)outputCallbackRefCon;
     (void)infoFlags;
-    ZXTH264EncoderContext *context = (__bridge ZXTH264EncoderContext *)sourceFrameRefCon;
+    if (!sourceFrameRefCon) {
+        return;
+    }
+    ZXTH264EncoderContext *context = CFBridgingRelease(sourceFrameRefCon);
     if (status != noErr || !sampleBuffer || !CMSampleBufferDataIsReady(sampleBuffer)) {
         dispatch_semaphore_signal(context.semaphore);
-        CFRelease(sourceFrameRefCon);
         return;
     }
 
@@ -83,7 +85,6 @@ static void H264OutputCallback(void *outputCallbackRefCon,
     }
 
     dispatch_semaphore_signal(context.semaphore);
-    CFRelease(sourceFrameRefCon);
 }
 
 static CVPixelBufferRef createPixelBufferFromCGImage(CGImageRef image, size_t width, size_t height) {
