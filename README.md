@@ -324,6 +324,14 @@ def front_most_orientation():
 	"""Get the frontmost application orientation."""
 ```
 
+Return value notes:
+
+* All app management calls return `(success, value_or_error)`.
+* `app_state` returns:
+	* `0`: app not running / not found.
+	* `1`: app running (fallback for older APIs).
+	* any other integer: `SBApplication` processState value when available.
+
 ## Bring Application to Foreground
 
 ```python
