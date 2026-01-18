@@ -117,7 +117,7 @@ static NSData *encodeFrame(VTCompressionSessionRef session, CGImageRef image, CM
     ZXTH264EncoderContext *context = [[ZXTH264EncoderContext alloc] init];
     context.encodedData = [NSMutableData data];
     context.semaphore = dispatch_semaphore_create(0);
-    void *contextRef = CFBridgingRetain(context);
+    CFTypeRef contextRef = CFBridgingRetain(context);
 
     size_t width = kH264TargetWidth;
     size_t height = kH264TargetHeight;
