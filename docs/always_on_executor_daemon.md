@@ -118,6 +118,8 @@ Từ kết quả Task 0.1, lập danh sách step primitives tối thiểu cần 
 
 ### A.4 JSON schema đề xuất cho Plan/Step/Guard
 
+**Status triển khai:** ✅ Đã có dataclass `Plan/Step/Guard` + `from_dict/to_dict` trong `layout/usr/lib/python3.7/site-packages/zxtouch/plan.py`.
+
 **Plan schema (v1, dạng JSON):**
 
 ```json
@@ -504,6 +506,7 @@ function handle_step_message(msg):
 
 ### Task 1.1 — Thiết kế Plan/Step/Guard schema
 **Mục tiêu:** Định nghĩa JSON schema (plan_id, steps, retry, on_fail, budgets, guards).
+**Trạng thái:** ✅ Đã triển khai lớp schema trong mã nguồn (`zxtouch.plan`).
 
 **Prompt gợi ý**
 ```
