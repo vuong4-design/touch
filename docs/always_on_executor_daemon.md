@@ -557,6 +557,7 @@ Thiết kế cơ chế idempotent: cấu trúc lưu last_seq theo plan/step, log
 
 ### Task 3.1 — Progress & Log streaming
 **Mục tiêu:** API để lấy progress/log.
+**Trạng thái:** ⚠️ Đã có TelemetryStore skeleton (client-side).
 
 **Prompt gợi ý**
 ```
