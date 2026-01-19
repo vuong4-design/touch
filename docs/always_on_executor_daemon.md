@@ -553,7 +553,7 @@ Thiết kế watchdog cho step timeout và plan budget. Đề xuất hành vi kh
 
 ### Task 2.1 — Lease + Heartbeat
 **Mục tiêu:** Protocol attach/detach; lease_ttl; auto-release.
-**Trạng thái:** ⚠️ Đã có protocol request objects + LeaseManager skeleton (client-side).
+**Trạng thái:** ⚠️ Đã có protocol request/response objects + LeaseManager skeleton (client-side).
 
 **Prompt gợi ý**
 ```
@@ -575,7 +575,7 @@ Thiết kế cơ chế idempotent: cấu trúc lưu last_seq theo plan/step, log
 
 ### Task 3.1 — Progress & Log streaming
 **Mục tiêu:** API để lấy progress/log.
-**Trạng thái:** ⚠️ Đã có TelemetryStore skeleton (client-side).
+**Trạng thái:** ⚠️ Đã có TelemetryStore + protocol response objects (client-side).
 
 **Prompt gợi ý**
 ```
