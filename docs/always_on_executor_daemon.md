@@ -524,6 +524,7 @@ Thiết kế JSON schema cho Plan/Step/Guard theo yêu cầu: steps + guards + r
 
 ### Task 1.3 — Watchdog & Budget enforcement
 **Mục tiêu:** Timeout từng step và toàn plan.
+**Trạng thái:** ⚠️ Đã có Watchdog skeleton (client-side).
 
 **Prompt gợi ý**
 ```
@@ -536,7 +537,7 @@ Thiết kế watchdog cho step timeout và plan budget. Đề xuất hành vi kh
 
 ### Task 2.1 — Lease + Heartbeat
 **Mục tiêu:** Protocol attach/detach; lease_ttl; auto-release.
-**Trạng thái:** ⚠️ Đã có protocol request objects (client-side).
+**Trạng thái:** ⚠️ Đã có protocol request objects + LeaseManager skeleton (client-side).
 
 **Prompt gợi ý**
 ```
