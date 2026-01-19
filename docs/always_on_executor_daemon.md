@@ -584,7 +584,7 @@ Thiết kế message types cho GET_PROGRESS/GET_LOGS. Chỉ ra format progress p
 
 ### Task 3.2 — Screenshot crop/downscale
 **Mục tiêu:** API screenshot tùy chọn crop/scale.
-**Trạng thái:** ⚠️ Đã có ScreenshotRequest object (client-side).
+**Trạng thái:** ⚠️ Đã có ScreenshotRequest + ScreenshotOptions/Encoder skeleton (client-side).
 
 **Prompt gợi ý**
 ```
