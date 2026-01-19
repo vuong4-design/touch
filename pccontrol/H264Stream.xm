@@ -21,6 +21,7 @@ static const int kH264StreamPort = 7001;
 static const int kH264TargetWidth = 1280;
 static const int kH264TargetHeight = 720;
 static const int kH264TargetFPS = 20;
+static const int kH264MinFPS = 10;
 static const int kH264KeyframeIntervalSeconds = 2;
 static const int kPCRIntervalFrames = 10;
 
@@ -216,6 +217,10 @@ static bool writeTSPackets(int fd,
                 ai = 8;
             }
 
+            size_t payloadRoom = payloadMax - ai;
+            if (copy > payloadRoom) {
+                copy = payloadRoom;
+            }
             size_t adaptLen = ai - 1;
             size_t stuff = payloadMax - (ai + copy);
             adaptLen += stuff;
@@ -363,6 +368,8 @@ static void streamLoop(int fd) {
 
         uint8_t patCC = 0, pmtCC = 0, vidCC = 0;
         int64_t frame = 0;
+        int currentFPS = kH264TargetFPS;
+        double streamSeconds = 0.0;
 
         bool running = true;
 
@@ -429,9 +436,11 @@ static void streamLoop(int fd) {
                     if (opts) CFDictionarySetValue(opts, kVTEncodeFrameOptionKey_ForceKeyFrame, kCFBooleanTrue);
                 }
 
+                CFAbsoluteTime frameStart = CFAbsoluteTimeGetCurrent();
+                CMTime frameTime = CMTimeMakeWithSeconds(streamSeconds, 90000);
                 OSStatus st = VTCompressionSessionEncodeFrame(enc,
                                                              pb,
-                                                             CMTimeMake(frame, kH264TargetFPS),
+                                                             frameTime,
                                                              kCMTimeInvalid,
                                                              opts,
                                                              f,
@@ -445,7 +454,11 @@ static void streamLoop(int fd) {
                     break;
                 }
 
-                dispatch_semaphore_wait(f->sem, DISPATCH_TIME_FOREVER);
+                if (dispatch_semaphore_wait(f->sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC))) != 0) {
+                    FrameCtxFree(f);
+                    running = false;
+                    break;
+                }
 
                 CFIndex hlen = CFDataGetLength(f->data);
                 if (hlen <= 0) {
@@ -459,7 +472,7 @@ static void streamLoop(int fd) {
                     sendTables(fd, &patCC, &pmtCC);
                 }
 
-                uint64_t pts = (uint64_t)(frame * 90000 / kH264TargetFPS);
+                uint64_t pts = (uint64_t)(streamSeconds * 90000.0);
                 uint8_t pes[14] = {
                     0x00, 0x00, 0x01, 0xE0,
                     0x00, 0x00,
@@ -503,7 +516,15 @@ static void streamLoop(int fd) {
                 }
 
                 frame++;
-                usleep((useconds_t)(1000000 / kH264TargetFPS));
+                double budget = 1.0 / (double)currentFPS;
+                double elapsed = CFAbsoluteTimeGetCurrent() - frameStart;
+                if (elapsed > budget * 1.2 && currentFPS > kH264MinFPS) {
+                    currentFPS--;
+                }
+                streamSeconds += 1.0 / (double)currentFPS;
+                if (elapsed < budget) {
+                    usleep((useconds_t)((budget - elapsed) * 1000000.0));
+                }
             }
         }
 
