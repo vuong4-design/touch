@@ -530,6 +530,10 @@ Thiết kế JSON schema cho Plan/Step/Guard theo yêu cầu: steps + guards + r
 **Mục tiêu:** Đảm bảo touch độc quyền theo lease/plan.
 **Trạng thái:** ⚠️ Đã có ResourceLockManager skeleton (client-side).
 
+### Task 1.5 — Logging
+**Mục tiêu:** Logging nội bộ theo plan/step để debug/telemetry.
+**Trạng thái:** ⚠️ Đã có LoggingStore skeleton (client-side).
+
 **Prompt gợi ý**
 ```
 Thiết kế watchdog cho step timeout và plan budget. Đề xuất hành vi khi timeout (retry/on_fail/abort) và format log/telemetry.
