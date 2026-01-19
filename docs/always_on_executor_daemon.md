@@ -515,6 +515,7 @@ Thiết kế JSON schema cho Plan/Step/Guard theo yêu cầu: steps + guards + r
 
 ### Task 1.2 — JobManager + State persistence
 **Mục tiêu:** Có JobManager quản lý plan queue + lưu trạng thái ra disk.
+**Trạng thái:** ⚠️ Đã có JobManager skeleton + JSON persistence (client-side).
 
 **Prompt gợi ý**
 ```
