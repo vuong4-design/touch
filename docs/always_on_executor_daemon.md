@@ -544,6 +544,7 @@ Thiết kế message types cho ATTACH/HEARTBEAT/DETACH/REATTACH. Đề xuất st
 
 ### Task 2.2 — Idempotent sequencing
 **Mục tiêu:** plan_id/step_id/seq để chống duplicate WAN.
+**Trạng thái:** ⚠️ Đã có IdempotentTracker helper (client-side).
 
 **Prompt gợi ý**
 ```
