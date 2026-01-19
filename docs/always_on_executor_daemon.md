@@ -555,7 +555,7 @@ Thiết kế watchdog cho step timeout và plan budget. Đề xuất hành vi kh
 
 ### Task 2.1 — Lease + Heartbeat
 **Mục tiêu:** Protocol attach/detach; lease_ttl; auto-release.
-**Trạng thái:** ⚠️ Đã có protocol request/response objects + LeaseManager + DaemonCore handler skeleton (client-side, gồm reattach).
+**Trạng thái:** ✅ Lease model + attach/heartbeat/detach/reattach MVP + tests.
 
 **Prompt gợi ý**
 ```
