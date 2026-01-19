@@ -504,6 +504,8 @@ function handle_step_message(msg):
 
 ## Phase 1 — Plan schema & JobManager (on-device)
 
+**Ghi chú units:** timeout/TTL/ budget dùng milliseconds (`ms`) cho `ResourceLock.acquire(..., timeout_ms)`, watchdog budgets (`time_ms`), và guard timeout (`timeout_ms`).
+
 ### Task 1.1 — Thiết kế Plan/Step/Guard schema
 **Mục tiêu:** Định nghĩa JSON schema (plan_id, steps, retry, on_fail, budgets, guards).
 **Trạng thái:** ✅ Đã triển khai lớp schema trong mã nguồn (`zxtouch.plan`).
