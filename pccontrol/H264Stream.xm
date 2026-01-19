@@ -30,7 +30,7 @@ static const uint16_t kTSPmtPid = 0x0100;
 static const uint16_t kTSVideoPid = 0x0101;
 static const uint16_t kTSProgramNumber = 1;
 
-// Only one viewer (per requirement)
+// only one viewer
 static _Atomic int gActiveClientFd = -1;
 
 #pragma mark - Utils
@@ -78,7 +78,7 @@ static void setClientSocketOptions(int fd) {
 #endif
 }
 
-#pragma mark - PAT / PMT (single 188B packet each)
+#pragma mark - PAT / PMT
 
 static NSData *buildPAT(uint8_t cc) {
     uint8_t sec[16] = {0};
@@ -247,11 +247,10 @@ typedef struct {
 static void FrameCtxFree(FrameCtx *f) {
     if (!f) return;
     if (f->data) CFRelease(f->data);
-    // dispatch objects are ObjC-managed under modern iOS; no dispatch_release here.
     free(f);
 }
 
-#pragma mark - Encoder callback (CF/C only)
+#pragma mark - Encoder callback
 
 static void H264OutputCallback(void *outputCallbackRefCon,
                               void *sourceFrameRefCon,
@@ -277,7 +276,6 @@ static void H264OutputCallback(void *outputCallbackRefCon,
     }
     f->key = key;
 
-    // SPS/PPS on keyframe
     CMFormatDescriptionRef fmt = CMSampleBufferGetFormatDescription(sb);
     if (key && fmt) {
         const uint8_t *sps = NULL, *pps = NULL;
@@ -291,7 +289,6 @@ static void H264OutputCallback(void *outputCallbackRefCon,
         }
     }
 
-    // AVCC -> AnnexB
     CMBlockBufferRef bb = CMSampleBufferGetDataBuffer(sb);
     size_t totalLen = 0;
     char *ptr = NULL;
@@ -358,39 +355,45 @@ static void streamLoop(int fd) {
     @autoreleasepool {
         setClientSocketOptions(fd);
 
-        VTCompressionSessionRef enc = createEncoder();
-        if (!enc) goto out_close;
-
-        // Reuse PixelBuffer + CGContext to reduce churn (stability + performance)
+        // Declare everything early to avoid goto / jump init problems
+        VTCompressionSessionRef enc = NULL;
         CVPixelBufferRef pb = NULL;
-        CVReturn cr = CVPixelBufferCreate(kCFAllocatorDefault,
-                                          kH264TargetWidth,
-                                          kH264TargetHeight,
-                                          kCVPixelFormatType_32BGRA,
-                                          NULL,
-                                          &pb);
-        if (cr != kCVReturnSuccess || !pb) {
-            VTCompressionSessionInvalidate(enc);
-            CFRelease(enc);
-            goto out_close;
-        }
-
-        CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
+        CGColorSpaceRef cs = NULL;
         CGContextRef cg = NULL;
 
-        // TS counters
         uint8_t patCC = 0, pmtCC = 0, vidCC = 0;
         int64_t frame = 0;
 
-        // Send PAT/PMT immediately (helps ffplay detect TS)
-        sendTables(fd, &patCC, &pmtCC);
+        bool running = true;
 
-        while (1) {
+        enc = createEncoder();
+        if (!enc) running = false;
+
+        if (running) {
+            CVReturn cr = CVPixelBufferCreate(kCFAllocatorDefault,
+                                              kH264TargetWidth,
+                                              kH264TargetHeight,
+                                              kCVPixelFormatType_32BGRA,
+                                              NULL,
+                                              &pb);
+            if (cr != kCVReturnSuccess || !pb) running = false;
+        }
+
+        if (running) {
+            cs = CGColorSpaceCreateDeviceRGB();
+            if (!cs) running = false;
+        }
+
+        if (running) {
+            // Send PAT/PMT immediately to help ffmpeg detect TS packet size
+            sendTables(fd, &patCC, &pmtCC);
+        }
+
+        while (running) {
             @autoreleasepool {
                 CGImageRef img = [Screen createScreenShotCGImageRef];
-                if (!img) break;
+                if (!img) { running = false; break; }
 
-                // Draw into reused pixel buffer
                 CVPixelBufferLockBaseAddress(pb, 0);
 
                 if (!cg) {
@@ -401,10 +404,6 @@ static void streamLoop(int fd) {
                                                CVPixelBufferGetBytesPerRow(pb),
                                                cs,
                                                kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
-                } else {
-                    // Update base address in case it changes (usually stable, but safe)
-                    // Recreate if pointer changed.
-                    // (Optional) You can skip this if you know base address stable.
                 }
 
                 if (cg) {
@@ -414,14 +413,14 @@ static void streamLoop(int fd) {
                 CVPixelBufferUnlockBaseAddress(pb, 0);
                 CGImageRelease(img);
 
-                // Per-frame context (C/CF only)
                 FrameCtx *f = (FrameCtx *)calloc(1, sizeof(FrameCtx));
-                if (!f) break;
+                if (!f) { running = false; break; }
+
                 f->sem = dispatch_semaphore_create(0);
                 f->data = CFDataCreateMutable(kCFAllocatorDefault, 0);
                 f->key = false;
 
-                // Force keyframe on first frame -> decoder gets SPS/PPS+IDR fast
+                // Force keyframe on first frame
                 CFMutableDictionaryRef opts = NULL;
                 if (frame == 0) {
                     opts = CFDictionaryCreateMutable(kCFAllocatorDefault, 1,
@@ -435,13 +434,14 @@ static void streamLoop(int fd) {
                                                              CMTimeMake(frame, kH264TargetFPS),
                                                              kCMTimeInvalid,
                                                              opts,
-                                                             f,   // IMPORTANT: pass FrameCtx*
+                                                             f,
                                                              NULL);
 
                 if (opts) CFRelease(opts);
 
                 if (st != noErr) {
                     FrameCtxFree(f);
+                    running = false;
                     break;
                 }
 
@@ -450,15 +450,15 @@ static void streamLoop(int fd) {
                 CFIndex hlen = CFDataGetLength(f->data);
                 if (hlen <= 0) {
                     FrameCtxFree(f);
+                    running = false;
                     break;
                 }
 
-                // Resend PAT/PMT on keyframes (helps some players)
+                // Resend PAT/PMT on keyframes
                 if (f->key) {
                     sendTables(fd, &patCC, &pmtCC);
                 }
 
-                // Build PES header (PTS only)
                 uint64_t pts = (uint64_t)(frame * 90000 / kH264TargetFPS);
                 uint8_t pes[14] = {
                     0x00, 0x00, 0x01, 0xE0,
@@ -473,13 +473,14 @@ static void streamLoop(int fd) {
                     (uint8_t)(0x01 | ((pts << 1) & 0xFE))
                 };
 
-                // Copy PES + H264 payload into a contiguous buffer
                 size_t total = sizeof(pes) + (size_t)hlen;
                 uint8_t *buf = (uint8_t *)malloc(total);
                 if (!buf) {
                     FrameCtxFree(f);
+                    running = false;
                     break;
                 }
+
                 memcpy(buf, pes, sizeof(pes));
                 memcpy(buf + sizeof(pes), CFDataGetBytePtr(f->data), (size_t)hlen);
 
@@ -496,7 +497,10 @@ static void streamLoop(int fd) {
                 free(buf);
                 FrameCtxFree(f);
 
-                if (!ok) break;
+                if (!ok) {
+                    running = false;
+                    break;
+                }
 
                 frame++;
                 usleep((useconds_t)(1000000 / kH264TargetFPS));
@@ -504,13 +508,14 @@ static void streamLoop(int fd) {
         }
 
         if (cg) CGContextRelease(cg);
-        CGColorSpaceRelease(cs);
-        CVPixelBufferRelease(pb);
+        if (cs) CGColorSpaceRelease(cs);
+        if (pb) CVPixelBufferRelease(pb);
 
-        VTCompressionSessionInvalidate(enc);
-        CFRelease(enc);
+        if (enc) {
+            VTCompressionSessionInvalidate(enc);
+            CFRelease(enc);
+        }
 
-out_close:
         shutdown(fd, SHUT_RDWR);
         close(fd);
 
@@ -555,10 +560,7 @@ void startH264StreamServer(void) {
                 continue;
             }
 
-#ifdef SO_NOSIGPIPE
-            int one = 1;
-            setsockopt(c, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
-#endif
+            setClientSocketOptions(c);
 
             dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
                 streamLoop(c);
