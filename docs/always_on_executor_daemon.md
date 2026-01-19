@@ -538,6 +538,10 @@ Thiết kế JSON schema cho Plan/Step/Guard theo yêu cầu: steps + guards + r
 **Mục tiêu:** Đánh giá guard trước khi execute step.
 **Trạng thái:** ⚠️ Đã có GuardEvaluator skeleton (client-side).
 
+### Task 1.7 — Plan runner (execution loop)
+**Mục tiêu:** Vòng lặp chạy plan/step, cập nhật trạng thái và logging.
+**Trạng thái:** ⚠️ Đã có PlanRunner skeleton (client-side).
+
 **Prompt gợi ý**
 ```
 Thiết kế watchdog cho step timeout và plan budget. Đề xuất hành vi khi timeout (retry/on_fail/abort) và format log/telemetry.
