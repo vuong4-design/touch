@@ -536,6 +536,7 @@ Thiết kế watchdog cho step timeout và plan budget. Đề xuất hành vi kh
 
 ### Task 2.1 — Lease + Heartbeat
 **Mục tiêu:** Protocol attach/detach; lease_ttl; auto-release.
+**Trạng thái:** ⚠️ Đã có protocol request objects (client-side).
 
 **Prompt gợi ý**
 ```
@@ -566,6 +567,7 @@ Thiết kế message types cho GET_PROGRESS/GET_LOGS. Chỉ ra format progress p
 
 ### Task 3.2 — Screenshot crop/downscale
 **Mục tiêu:** API screenshot tùy chọn crop/scale.
+**Trạng thái:** ⚠️ Đã có ScreenshotRequest object (client-side).
 
 **Prompt gợi ý**
 ```
