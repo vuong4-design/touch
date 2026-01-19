@@ -515,7 +515,7 @@ Thiết kế JSON schema cho Plan/Step/Guard theo yêu cầu: steps + guards + r
 
 ### Task 1.2 — JobManager + State persistence
 **Mục tiêu:** Có JobManager quản lý plan queue + lưu trạng thái ra disk.
-**Trạng thái:** ⚠️ Đã có JobManager skeleton + JSON persistence (client-side) và lease/state helpers cơ bản.
+**Trạng thái:** ✅ MVP start/stop/status/list + registry + checkpoint đã có.
 
 **Prompt gợi ý**
 ```
@@ -524,23 +524,23 @@ Thiết kế JSON schema cho Plan/Step/Guard theo yêu cầu: steps + guards + r
 
 ### Task 1.3 — Watchdog & Budget enforcement
 **Mục tiêu:** Timeout từng step và toàn plan.
-**Trạng thái:** ⚠️ Đã có Watchdog skeleton (client-side).
+**Trạng thái:** ⚠️ Watchdog đã có; cần wiring để auto-stop HUNG (sau runner/guard ổn).
 
 ### Task 1.4 — ResourceLock (Touch độc quyền)
 **Mục tiêu:** Đảm bảo touch độc quyền theo lease/plan.
-**Trạng thái:** ⚠️ Đã có ResourceLockManager skeleton (client-side).
+**Trạng thái:** ✅ MVP lock per-resource + release_all đã có.
 
 ### Task 1.5 — Logging
 **Mục tiêu:** Logging nội bộ theo plan/step để debug/telemetry.
-**Trạng thái:** ⚠️ Đã có LoggingStore skeleton (client-side).
+**Trạng thái:** ✅ MVP per-job file logger + rotation đơn giản.
 
 ### Task 1.6 — Guard evaluator
 **Mục tiêu:** Đánh giá guard trước khi execute step.
-**Trạng thái:** ⚠️ Đã có GuardEvaluator skeleton (client-side).
+**Trạng thái:** ✅ MVP guard luôn/không + timeout/app/pixel cơ bản.
 
 ### Task 1.7 — Plan runner (execution loop)
 **Mục tiêu:** Vòng lặp chạy plan/step, cập nhật trạng thái và logging.
-**Trạng thái:** ⚠️ Đã có PlanRunner skeleton (client-side).
+**Trạng thái:** ✅ MVP run happy-path + retry/backoff + checkpoint + log.
 
 **Prompt gợi ý**
 ```
