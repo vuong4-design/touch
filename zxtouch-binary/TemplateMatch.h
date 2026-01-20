@@ -5,7 +5,7 @@
 #ifdef __cplusplus
 #undef NO
 #undef YES
-#include <opencv2/opencv.hpp>
+#include "../frameworks/opencv2.framework/Versions/A/Headers/opencv2/opencv.hpp"
 #endif
 
 
