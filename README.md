@@ -26,7 +26,7 @@ If would like to build for iOS < 14.0, switch to a compatible Xcode version, and
 
 ## Special thanks for reference
 
-https://github.com/dounine/SimulateTouch
+https://github.com/dounine/SimulateTouch ok
 
 ## === Original Content ===
 
