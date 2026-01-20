@@ -4,6 +4,7 @@
 #include "IPCConstants.h"
 #include <string.h>
 #include <ctype.h>
+#include <dispatch/dispatch.h>
 
 CFSocketRef socketRef;
 CFWriteStreamRef writeStreamRef = NULL;
@@ -14,6 +15,16 @@ static void readStream(CFReadStreamRef readStream, CFStreamEventType eventype, v
 static void TCPServerAcceptCallBack(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, const void *data, void *info);
 
 // Reference: https://www.jianshu.com/p/9353105a9129
+
+static dispatch_queue_t ipcQueue()
+{
+    static dispatch_queue_t queue;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = dispatch_queue_create("com.zjx.zxtouchd.ipc", DISPATCH_QUEUE_SERIAL);
+    });
+    return queue;
+}
 
 static int getTaskTypeFromBuffer(const char *buffer)
 {
@@ -169,7 +180,16 @@ static void handleDaemonMessage(UInt8 *buff, CFWriteStreamRef client)
         bool waitForResponse = strcmp(buffer, kZXTouchIPCCommandHome) == 0
             ? true
             : shouldWaitForResponse(taskType);
-        CFDataRef responseData = sendIPCMessage(ipcPayload, waitForResponse);
+        __block CFDataRef responseData = NULL;
+        if (waitForResponse) {
+            dispatch_sync(ipcQueue(), ^{
+                responseData = sendIPCMessage(ipcPayload, true);
+            });
+        } else {
+            dispatch_async(ipcQueue(), ^{
+                sendIPCMessage(ipcPayload, false);
+            });
+        }
         if (client) {
             if (responseData) {
                 const UInt8 *responseBytes = CFDataGetBytePtr(responseData);
