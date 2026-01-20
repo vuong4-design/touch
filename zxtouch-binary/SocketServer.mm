@@ -111,7 +111,7 @@ static CFDataRef sendIPCMessage(const char *payload, bool waitForResponse)
         return NULL;
     }
 
-    bool pingRequired = strcmp(payload, kZXTouchIPCCommandPing) != 0;
+    bool pingRequired = waitForResponse && strcmp(payload, kZXTouchIPCCommandPing) != 0;
     if (pingRequired) {
         static CFAbsoluteTime lastPingSuccess = 0;
         CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
@@ -131,10 +131,8 @@ static CFDataRef sendIPCMessage(const char *payload, bool waitForResponse)
             }
             if (pingResult != kCFMessagePortSuccess) {
                 NSLog(@"### com.zjx.zxtouchd: IPC ping failed with code %d", (int)pingResult);
-                if (waitForResponse) {
-                    CFRelease(remotePort);
-                    return NULL;
-                }
+                CFRelease(remotePort);
+                return NULL;
             } else {
                 lastPingSuccess = now;
             }
