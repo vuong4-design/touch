@@ -357,10 +357,8 @@ Boolean init()
 
         initSenderId();
         startPopupListeningCallBack();
-        dispatch_async(dispatch_get_main_queue(), ^{
-            startIPCServer();
-            NSLog(@"### com.zjx.springboard: IPC server started on main runloop");
-        });
+        startIPCServerOnBackgroundThread();
+        NSLog(@"### com.zjx.springboard: IPC server started on background runloop");
         NSLog(@"### com.zjx.springboard: popup listener started");
 
         // init touch screensize. Temporarily put this line here. Will be removed.

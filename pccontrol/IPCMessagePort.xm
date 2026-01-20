@@ -8,6 +8,7 @@
 
 static CFMessagePortRef ipcLocalPort = NULL;
 static CFRunLoopSourceRef ipcRunLoopSource = NULL;
+static BOOL ipcThreadStarted = NO;
 
 static CFDataRef handleIPCMessage(CFMessagePortRef local, SInt32 msgid, CFDataRef data, void *info)
 {
@@ -119,4 +120,21 @@ void startIPCServer()
         NSLog(@"### com.zjx.springboard: IPC ready marker written.");
     }
     NSLog(@"### com.zjx.springboard: IPC message port started.");
+}
+
+void startIPCServerOnBackgroundThread()
+{
+    if (ipcThreadStarted) {
+        NSLog(@"### com.zjx.springboard: IPC server thread already started.");
+        return;
+    }
+    ipcThreadStarted = YES;
+    NSLog(@"### com.zjx.springboard: starting IPC server thread.");
+    NSThread *ipcThread = [[NSThread alloc] initWithBlock:^{
+        @autoreleasepool {
+            startIPCServer();
+            CFRunLoopRun();
+        }
+    }];
+    [ipcThread start];
 }
