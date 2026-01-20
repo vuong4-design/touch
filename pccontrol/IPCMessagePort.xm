@@ -38,7 +38,23 @@ static CFDataRef handleIPCMessage(CFMessagePortRef local, SInt32 msgid, CFDataRe
     if ([command hasPrefix:taskPrefix]) {
         NSString *rawTask = [command substringFromIndex:[taskPrefix length]];
         if ([rawTask length] > 0) {
-            processTask((UInt8 *)[rawTask UTF8String]);
+            CFWriteStreamRef responseStream = CFWriteStreamCreateWithAllocatedBuffers(kCFAllocatorDefault,
+                                                                                      kCFAllocatorDefault);
+            if (responseStream) {
+                CFWriteStreamOpen(responseStream);
+                processTask((UInt8 *)[rawTask UTF8String], responseStream);
+                CFDataRef responseData = CFWriteStreamCopyProperty(responseStream, kCFStreamPropertyDataWritten);
+                CFWriteStreamClose(responseStream);
+                CFRelease(responseStream);
+                if (responseData && CFDataGetLength(responseData) > 0) {
+                    return responseData;
+                }
+                if (responseData) {
+                    CFRelease(responseData);
+                }
+            } else {
+                processTask((UInt8 *)[rawTask UTF8String]);
+            }
         }
         const char *response = "0\r\n";
         return CFDataCreate(kCFAllocatorDefault, (const UInt8 *)response, strlen(response));
