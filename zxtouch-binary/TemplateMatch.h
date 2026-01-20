@@ -5,7 +5,7 @@
 #ifdef __cplusplus
 #undef NO
 #undef YES
-#import <opencv.hpp>
+#include <opencv2/opencv.hpp>
 #endif
 
 
