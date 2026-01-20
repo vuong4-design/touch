@@ -202,10 +202,15 @@ Start the callback for setting sender id
 */
 void startPopupListeningCallBack()
 {
+    if (ioHIDEventSystemForPopupDectect) {
+        NSLog(@"### com.zjx.springboard: popup listener already active.");
+        return;
+    }
     ioHIDEventSystemForPopupDectect = IOHIDEventSystemClientCreate(kCFAllocatorDefault);
 
-    IOHIDEventSystemClientScheduleWithRunLoop(ioHIDEventSystemForPopupDectect, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
+    IOHIDEventSystemClientScheduleWithRunLoop(ioHIDEventSystemForPopupDectect, CFRunLoopGetMain(), kCFRunLoopDefaultMode);
     IOHIDEventSystemClientRegisterEventCallback(ioHIDEventSystemForPopupDectect, (IOHIDEventSystemClientEventCallback)popupWindowCallBack, NULL, NULL);
+    NSLog(@"### com.zjx.springboard: popup listener scheduled on main runloop.");
     //NSLog(@"### com.zjx.springboard: screen width: %f, screen height: %f", device_screen_width, device_screen_height);
 }
 
