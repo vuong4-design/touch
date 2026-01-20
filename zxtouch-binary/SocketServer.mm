@@ -2,6 +2,7 @@
 
 #include "SocketServer.h"
 #include "IPCConstants.h"
+#include "ScreenMatch.h"
 #include <string.h>
 #include <ctype.h>
 #include <dispatch/dispatch.h>
@@ -26,6 +27,14 @@ static dispatch_queue_t ipcQueue()
     return queue;
 }
 
+static int writeClientResponse(UInt8 *msg, CFWriteStreamRef client)
+{
+    if (client && msg) {
+        return CFWriteStreamWrite(client, msg, strlen((char *)msg));
+    }
+    return -1;
+}
+
 static int getTaskTypeFromBuffer(const char *buffer)
 {
     if (!buffer || !isdigit(buffer[0]) || !isdigit(buffer[1])) {
@@ -46,7 +55,6 @@ static bool shouldRouteToSpringBoard(int taskType)
         case 17: // TASK_RAPID_FIRE_TAP
         case 19: // TASK_PLAY_SCRIPT
         case 20: // TASK_PLAY_SCRIPT_FORCE_STOP
-        case 21: // TASK_TEMPLATE_MATCH
         case 22: // TASK_SHOW_TOAST
         case 23: // TASK_COLOR_PICKER
         case 24: // TASK_TEXT_INPUT
@@ -175,6 +183,23 @@ static void handleDaemonMessage(UInt8 *buff, CFWriteStreamRef client)
 
     if (strcmp(buffer, kZXTouchIPCCommandHome) == 0) {
         isSpringBoardTask = true;
+    }
+
+    if (taskType == 21) { // TASK_TEMPLATE_MATCH
+        UInt8 *eventData = buff + 0x2;
+        NSError *error = nil;
+        CGRect result = screenMatchFromRawData(eventData, &error);
+        if (client) {
+            if (error) {
+                writeClientResponse((UInt8 *)[[error localizedDescription] UTF8String], client);
+            } else {
+                NSString *response = [NSString stringWithFormat:@"0;;%.2f;;%.2f;;%.2f;;%.2f\r\n",
+                                      result.origin.x, result.origin.y,
+                                      result.size.width, result.size.height];
+                writeClientResponse((UInt8 *)[response UTF8String], client);
+            }
+        }
+        return;
     }
 
         if (isSpringBoardTask) {
