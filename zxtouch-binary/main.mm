@@ -11,6 +11,7 @@
 
 int executeCommand();
 int playBackFromRawFile();
+int runDaemon();
 
 int getSpringboardSocket() {
     int sock = 0, valread;
@@ -45,12 +46,16 @@ int getSpringboardSocket() {
 int main(int argc, char *argv[], char *envp[]) {
     if (argc < 2)
     {
-        NSLog(@"com.zjx.zxtouchb: usage: zxtouchd task [...]");
-        printf("com.zjx.zxtouchb: usage: zxtouchd task [...]");
+        NSLog(@"com.zjx.zxtouchb: usage: zxtouchd --daemon | zxtouchd [parameter] [...]");
+        printf("com.zjx.zxtouchb: usage: zxtouchd --daemon | zxtouchd [parameter] [...]");
         return 0;
     }
-    
-    if (equal(argv[1], "-e"))
+
+    if (equal(argv[1], "--daemon") || equal(argv[1], "-d"))
+    {
+        return runDaemon();
+    }
+    else if (equal(argv[1], "-e"))
     {
         executeCommand();
         // notify tweak that the task has been finished
@@ -64,7 +69,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
     else
     {
-        NSLog(@"com.zjx.zxtouchb: usage: zxtouchd [parameter] [...]");
+        NSLog(@"com.zjx.zxtouchb: usage: zxtouchd --daemon | zxtouchd [parameter] [...]");
     }
 
     /*
@@ -96,6 +101,20 @@ int main(int argc, char *argv[], char *envp[]) {
     else
      */
 
+    return 0;
+}
+
+int runDaemon()
+{
+    NSLog(@"com.zjx.zxtouchb: zxtouchd daemon starting.");
+    @autoreleasepool {
+        NSRunLoop *runLoop = [NSRunLoop currentRunLoop];
+        while (true) {
+            @autoreleasepool {
+                [runLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:60.0]];
+            }
+        }
+    }
     return 0;
 }
 
@@ -173,4 +192,3 @@ int playBackFromRawFile()
         }
     }
 }
-
