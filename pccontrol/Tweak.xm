@@ -27,7 +27,6 @@
 #import <os/lock.h>
 
 #include "Touch.h"
-#include "SocketServer.h"
 #include "Common.h"
 #include "Screen.h"
 #include "AlertBox.h"
@@ -41,6 +40,8 @@
 #include "TouchIndicator/TouchIndicatorWindow.h"
 #include "Activator/ActivatorListener.h"
 #include "H264Stream.h"
+#include "IPCConstants.h"
+#include "IPCMessagePort.h"
 
 
 #define DEBUG_MODE
@@ -66,7 +67,7 @@ static ActivatorListener *activatorInstance;
 int daemonSock = -1;
 
 
-typedef struct　eventInfo_s* eventInfo;
+typedef struct eventInfo_s* eventInfo;
 typedef struct Node* llNodePtr;
 typedef struct eventData_s* eventDataPtr;
 
@@ -201,10 +202,15 @@ Start the callback for setting sender id
 */
 void startPopupListeningCallBack()
 {
+    if (ioHIDEventSystemForPopupDectect) {
+        NSLog(@"### com.zjx.springboard: popup listener already active.");
+        return;
+    }
     ioHIDEventSystemForPopupDectect = IOHIDEventSystemClientCreate(kCFAllocatorDefault);
 
-    IOHIDEventSystemClientScheduleWithRunLoop(ioHIDEventSystemForPopupDectect, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
+    IOHIDEventSystemClientScheduleWithRunLoop(ioHIDEventSystemForPopupDectect, CFRunLoopGetMain(), kCFRunLoopDefaultMode);
     IOHIDEventSystemClientRegisterEventCallback(ioHIDEventSystemForPopupDectect, (IOHIDEventSystemClientEventCallback)popupWindowCallBack, NULL, NULL);
+    NSLog(@"### com.zjx.springboard: popup listener scheduled on main runloop.");
     //NSLog(@"### com.zjx.springboard: screen width: %f, screen height: %f", device_screen_width, device_screen_height);
 }
 
@@ -288,6 +294,21 @@ Boolean init()
     %orig;
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSLog(@"### com.zjx.springboard: tweak launch init begin");
+        NSData *tweakMarkerData = [@"loaded" dataUsingEncoding:NSUTF8StringEncoding];
+        if (![tweakMarkerData writeToFile:kZXTouchTweakLoadedMarkerPath atomically:true]) {
+            NSLog(@"### com.zjx.springboard: failed to write tweak marker.");
+        } else {
+            NSLog(@"### com.zjx.springboard: tweak marker written.");
+        }
+        if ([[NSFileManager defaultManager] fileExistsAtPath:kZXTouchIPCReadyMarkerPath]) {
+            NSError *removeError = nil;
+            if (![[NSFileManager defaultManager] removeItemAtPath:kZXTouchIPCReadyMarkerPath error:&removeError]) {
+                NSLog(@"### com.zjx.springboard: failed to remove IPC marker: %@", removeError);
+            } else {
+                NSLog(@"### com.zjx.springboard: cleared stale IPC marker.");
+            }
+        }
         Boolean isExpired = false;
 
         int requestCount = 0;
@@ -299,9 +320,12 @@ Boolean init()
         // Send the request and wait for a response
         NSHTTPURLResponse   *response;
         NSError             *error = nil;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         NSData *data = [NSURLConnection sendSynchronousRequest:request 
                                             returningResponse:&response 
                                                         error:&error];
+#pragma clang diagnostic pop
 
         // check for an error
         if (error != nil) {
@@ -310,7 +334,7 @@ Boolean init()
         else if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
             NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
             if (httpResponse.statusCode == 404) {
-                NSLog(@"com.zjx.springboard: status code: %d", httpResponse.statusCode);
+                NSLog(@"com.zjx.springboard: status code: %ld", (long)httpResponse.statusCode);
                 isExpired = true;
             }     
         }
@@ -324,6 +348,7 @@ Boolean init()
 
     });
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSLog(@"### com.zjx.springboard: init UI services");
         CGFloat screen_scale = [[UIScreen mainScreen] scale];
 
         CGFloat width = [UIScreen mainScreen].bounds.size.width * screen_scale;
@@ -333,9 +358,13 @@ Boolean init()
 
         //CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)stopCrazyTapCallback, CFSTR("com.zjx.crazytap.stop"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
         popupWindow = [[PopupWindow alloc] init];
+        NSLog(@"### com.zjx.springboard: popup window created");
 
         initSenderId();
         startPopupListeningCallBack();
+        startIPCServerOnBackgroundThread();
+        NSLog(@"### com.zjx.springboard: IPC server started on background runloop");
+        NSLog(@"### com.zjx.springboard: popup listener started");
 
         // init touch screensize. Temporarily put this line here. Will be removed.
         initTouchGetScreenSize();
@@ -343,8 +372,10 @@ Boolean init()
         // init other things
         if (!init())
         {
+            NSLog(@"### com.zjx.springboard: init failed");
             return;
         }
+        NSLog(@"### com.zjx.springboard: init complete");
 
      /*
         
@@ -366,7 +397,7 @@ Boolean init()
         //system("sudo zxtouchb -e \"chown -R mobile:mobile /var/mobile/Library/ZXTouch\"");
 
         startH264StreamServer();
-        socketServer();
+        NSLog(@"### com.zjx.springboard: H264 stream server started");
     });
 }
 %end
