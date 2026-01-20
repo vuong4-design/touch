@@ -27,7 +27,6 @@
 #import <os/lock.h>
 
 #include "Touch.h"
-#include "SocketServer.h"
 #include "Common.h"
 #include "Screen.h"
 #include "AlertBox.h"
@@ -366,7 +365,6 @@ Boolean init()
         //system("sudo zxtouchb -e \"chown -R mobile:mobile /var/mobile/Library/ZXTouch\"");
 
         startH264StreamServer();
-        socketServer();
     });
 }
 %end

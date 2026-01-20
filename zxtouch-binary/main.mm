@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <string.h>
 #include "NSTask.h" // in ~/theos/include/NSTask.h
+#include "SocketServer.h"
 
 #define SPRINGBOARD_PORT 6000
 #define equal(a, b) strcmp(a, b) == 0
@@ -107,14 +108,7 @@ int main(int argc, char *argv[], char *envp[]) {
 int runDaemon()
 {
     NSLog(@"com.zjx.zxtouchb: zxtouchd daemon starting.");
-    @autoreleasepool {
-        NSRunLoop *runLoop = [NSRunLoop currentRunLoop];
-        while (true) {
-            @autoreleasepool {
-                [runLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:60.0]];
-            }
-        }
-    }
+    socketServer();
     return 0;
 }
 
