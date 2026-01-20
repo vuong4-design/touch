@@ -71,6 +71,10 @@ static bool shouldRouteToSpringBoard(int taskType)
 static CFDataRef sendIPCMessage(const char *payload)
 {
     CFDataRef responseData = NULL;
+    if (access(kZXTouchIPCReadyMarkerPath, F_OK) != 0) {
+        NSLog(@"### com.zjx.zxtouchd: IPC ready marker missing.");
+        return NULL;
+    }
     CFMessagePortRef remotePort = CFMessagePortCreateRemote(kCFAllocatorDefault, kZXTouchIPCPortName);
     if (!remotePort) {
         NSLog(@"### com.zjx.zxtouchd: unable to find SpringBoard IPC port.");
@@ -130,7 +134,7 @@ static void handleDaemonMessage(UInt8 *buff, CFWriteStreamRef client)
                 }
                 CFRelease(responseData);
             } else {
-                const char *response = "0;;queued\r\n";
+                const char *response = "1;;ipc_not_ready\r\n";
                 CFWriteStreamWrite(client, (const UInt8 *)response, strlen(response));
             }
         }

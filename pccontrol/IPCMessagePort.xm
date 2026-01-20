@@ -96,5 +96,11 @@ void startIPCServer()
     }
 
     CFRunLoopAddSource(CFRunLoopGetCurrent(), ipcRunLoopSource, kCFRunLoopCommonModes);
+    NSData *markerData = [@"ready" dataUsingEncoding:NSUTF8StringEncoding];
+    if (![markerData writeToFile:kZXTouchIPCReadyMarkerPath atomically:YES]) {
+        NSLog(@"### com.zjx.springboard: failed to write IPC ready marker.");
+    } else {
+        NSLog(@"### com.zjx.springboard: IPC ready marker written.");
+    }
     NSLog(@"### com.zjx.springboard: IPC message port started.");
 }
