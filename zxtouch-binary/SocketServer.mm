@@ -170,26 +170,31 @@ static void handleDaemonMessage(UInt8 *buff, CFWriteStreamRef client)
         isSpringBoardTask = true;
     }
 
-    if (isSpringBoardTask) {
-        char ipcPayload[4096];
-        if (strcmp(buffer, kZXTouchIPCCommandHome) == 0) {
-            snprintf(ipcPayload, sizeof(ipcPayload), "%s", kZXTouchIPCCommandHome);
-        } else {
-            snprintf(ipcPayload, sizeof(ipcPayload), "%s%s", kZXTouchIPCCommandTaskPrefix, buffer);
-        }
-        bool waitForResponse = strcmp(buffer, kZXTouchIPCCommandHome) == 0
-            ? true
-            : shouldWaitForResponse(taskType);
-        __block CFDataRef responseData = NULL;
-        if (waitForResponse) {
-            dispatch_sync(ipcQueue(), ^{
-                responseData = sendIPCMessage(ipcPayload, true);
-            });
-        } else {
-            dispatch_async(ipcQueue(), ^{
-                sendIPCMessage(ipcPayload, false);
-            });
-        }
+        if (isSpringBoardTask) {
+            char ipcPayload[4096];
+            if (strcmp(buffer, kZXTouchIPCCommandHome) == 0) {
+                snprintf(ipcPayload, sizeof(ipcPayload), "%s", kZXTouchIPCCommandHome);
+            } else {
+                snprintf(ipcPayload, sizeof(ipcPayload), "%s%s", kZXTouchIPCCommandTaskPrefix, buffer);
+            }
+            NSString *payloadString = [NSString stringWithUTF8String:ipcPayload];
+            if (!payloadString) {
+                return;
+            }
+            bool waitForResponse = strcmp(buffer, kZXTouchIPCCommandHome) == 0
+                ? true
+                : shouldWaitForResponse(taskType);
+            __block CFDataRef responseData = NULL;
+            if (waitForResponse) {
+                dispatch_sync(ipcQueue(), ^{
+                    responseData = sendIPCMessage([payloadString UTF8String], true);
+                });
+            } else {
+                NSString *asyncPayload = [payloadString copy];
+                dispatch_async(ipcQueue(), ^{
+                    sendIPCMessage([asyncPayload UTF8String], false);
+                });
+            }
         if (client) {
             if (responseData) {
                 const UInt8 *responseBytes = CFDataGetBytePtr(responseData);
