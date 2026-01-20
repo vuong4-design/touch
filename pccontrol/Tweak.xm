@@ -291,7 +291,7 @@ Boolean init()
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSLog(@"### com.zjx.springboard: tweak launch init begin");
         NSData *tweakMarkerData = [@"loaded" dataUsingEncoding:NSUTF8StringEncoding];
-        if (![tweakMarkerData writeToFile:kZXTouchTweakLoadedMarkerPath atomically:YES]) {
+        if (![tweakMarkerData writeToFile:kZXTouchTweakLoadedMarkerPath atomically:true]) {
             NSLog(@"### com.zjx.springboard: failed to write tweak marker.");
         } else {
             NSLog(@"### com.zjx.springboard: tweak marker written.");
@@ -315,9 +315,12 @@ Boolean init()
         // Send the request and wait for a response
         NSHTTPURLResponse   *response;
         NSError             *error = nil;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         NSData *data = [NSURLConnection sendSynchronousRequest:request 
                                             returningResponse:&response 
                                                         error:&error];
+#pragma clang diagnostic pop
 
         // check for an error
         if (error != nil) {
