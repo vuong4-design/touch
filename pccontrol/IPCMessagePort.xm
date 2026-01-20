@@ -43,14 +43,18 @@ static CFDataRef handleIPCMessage(CFMessagePortRef local, SInt32 msgid, CFDataRe
             if (responseStream) {
                 CFWriteStreamOpen(responseStream);
                 processTask((UInt8 *)[rawTask UTF8String], responseStream);
-                CFDataRef responseData = CFWriteStreamCopyProperty(responseStream, kCFStreamPropertyDataWritten);
+                CFTypeRef responseProperty = CFWriteStreamCopyProperty(responseStream, kCFStreamPropertyDataWritten);
                 CFWriteStreamClose(responseStream);
                 CFRelease(responseStream);
+                CFDataRef responseData = NULL;
+                if (responseProperty && CFGetTypeID(responseProperty) == CFDataGetTypeID()) {
+                    responseData = (CFDataRef)responseProperty;
+                }
                 if (responseData && CFDataGetLength(responseData) > 0) {
                     return responseData;
                 }
-                if (responseData) {
-                    CFRelease(responseData);
+                if (responseProperty) {
+                    CFRelease(responseProperty);
                 }
             } else {
                 processTask((UInt8 *)[rawTask UTF8String]);
