@@ -81,6 +81,27 @@ static CFDataRef sendIPCMessage(const char *payload)
         return NULL;
     }
 
+    if (strcmp(payload, kZXTouchIPCCommandPing) != 0) {
+        CFDataRef pingData = CFDataCreate(kCFAllocatorDefault,
+                                          (const UInt8 *)kZXTouchIPCCommandPing,
+                                          strlen(kZXTouchIPCCommandPing));
+        SInt32 pingResult = CFMessagePortSendRequest(remotePort,
+                                                     1,
+                                                     pingData,
+                                                     0.5,
+                                                     0.5,
+                                                     kCFRunLoopDefaultMode,
+                                                     NULL);
+        if (pingData) {
+            CFRelease(pingData);
+        }
+        if (pingResult != kCFMessagePortSuccess) {
+            NSLog(@"### com.zjx.zxtouchd: IPC ping failed with code %d", (int)pingResult);
+            CFRelease(remotePort);
+            return NULL;
+        }
+    }
+
     CFDataRef messageData = CFDataCreate(kCFAllocatorDefault, (const UInt8 *)payload, strlen(payload));
     NSLog(@"### com.zjx.zxtouchd: IPC send payload: %s", payload);
     SInt32 result = CFMessagePortSendRequest(remotePort,

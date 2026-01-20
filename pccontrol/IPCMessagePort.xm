@@ -34,6 +34,11 @@ static CFDataRef handleIPCMessage(CFMessagePortRef local, SInt32 msgid, CFDataRe
         return CFDataCreate(kCFAllocatorDefault, (const UInt8 *)response, strlen(response));
     }
 
+    if ([command isEqualToString:[NSString stringWithUTF8String:kZXTouchIPCCommandPing]]) {
+        const char *response = "0\r\n";
+        return CFDataCreate(kCFAllocatorDefault, (const UInt8 *)response, strlen(response));
+    }
+
     NSString *taskPrefix = [NSString stringWithUTF8String:kZXTouchIPCCommandTaskPrefix];
     if ([command hasPrefix:taskPrefix]) {
         NSString *rawTask = [command substringFromIndex:[taskPrefix length]];

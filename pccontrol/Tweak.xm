@@ -289,6 +289,14 @@ Boolean init()
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSLog(@"### com.zjx.springboard: tweak launch init begin");
+        if ([[NSFileManager defaultManager] fileExistsAtPath:kZXTouchIPCReadyMarkerPath]) {
+            NSError *removeError = nil;
+            if (![[NSFileManager defaultManager] removeItemAtPath:kZXTouchIPCReadyMarkerPath error:&removeError]) {
+                NSLog(@"### com.zjx.springboard: failed to remove IPC marker: %@", removeError);
+            } else {
+                NSLog(@"### com.zjx.springboard: cleared stale IPC marker.");
+            }
+        }
         Boolean isExpired = false;
 
         int requestCount = 0;
