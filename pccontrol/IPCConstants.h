@@ -8,5 +8,6 @@ static const char *const kZXTouchIPCCommandHome = "CMD_HOME";
 static const char *const kZXTouchIPCCommandPing = "CMD_PING";
 static const char *const kZXTouchIPCCommandTaskPrefix = "TASK::";
 static NSString *const kZXTouchIPCReadyMarkerPath = @"/var/mobile/Library/ZXTouch/ipc_ready";
+static NSString *const kZXTouchTweakLoadedMarkerPath = @"/var/mobile/Library/ZXTouch/tweak_loaded";
 
 #endif
