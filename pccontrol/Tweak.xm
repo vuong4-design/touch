@@ -319,7 +319,7 @@ Boolean init()
         else if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
             NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
             if (httpResponse.statusCode == 404) {
-                NSLog(@"com.zjx.springboard: status code: %d", httpResponse.statusCode);
+                NSLog(@"com.zjx.springboard: status code: %ld", (long)httpResponse.statusCode);
                 isExpired = true;
             }     
         }
