@@ -1,6 +1,7 @@
 #include "IPCMessagePort.h"
 #include "IPCConstants.h"
 #include "HardwareKey.h"
+#include "Task.h"
 #import <Foundation/Foundation.h>
 #import <CoreFoundation/CoreFoundation.h>
 #include <string.h>
@@ -29,6 +30,16 @@ static CFDataRef handleIPCMessage(CFMessagePortRef local, SInt32 msgid, CFDataRe
         NSError *error = nil;
         sendHardwareKeyEventFromRawData((UInt8 *)"1;;1", &error);
         sendHardwareKeyEventFromRawData((UInt8 *)"0;;1", &error);
+        const char *response = "0\r\n";
+        return CFDataCreate(kCFAllocatorDefault, (const UInt8 *)response, strlen(response));
+    }
+
+    NSString *taskPrefix = [NSString stringWithUTF8String:kZXTouchIPCCommandTaskPrefix];
+    if ([command hasPrefix:taskPrefix]) {
+        NSString *rawTask = [command substringFromIndex:[taskPrefix length]];
+        if ([rawTask length] > 0) {
+            processTask((UInt8 *)[rawTask UTF8String]);
+        }
         const char *response = "0\r\n";
         return CFDataCreate(kCFAllocatorDefault, (const UInt8 *)response, strlen(response));
     }

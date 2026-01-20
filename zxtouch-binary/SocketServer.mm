@@ -3,6 +3,7 @@
 #include "SocketServer.h"
 #include "IPCConstants.h"
 #include <string.h>
+#include <ctype.h>
 
 CFSocketRef socketRef;
 CFWriteStreamRef writeStreamRef = NULL;
@@ -14,39 +15,125 @@ static void TCPServerAcceptCallBack(CFSocketRef socket, CFSocketCallBackType typ
 
 // Reference: https://www.jianshu.com/p/9353105a9129
 
+static int getTaskTypeFromBuffer(const char *buffer)
+{
+    if (!buffer || !isdigit(buffer[0]) || !isdigit(buffer[1])) {
+        return -1;
+    }
+    return (buffer[0] - '0') * 10 + (buffer[1] - '0');
+}
+
+static bool shouldRouteToSpringBoard(int taskType)
+{
+    switch (taskType) {
+        case 10: // TASK_PERFORM_TOUCH
+        case 11: // TASK_PROCESS_BRING_FOREGROUND
+        case 12: // TASK_SHOW_ALERT_BOX
+        case 14: // TASK_TOUCH_RECORDING_START
+        case 15: // TASK_TOUCH_RECORDING_STOP
+        case 16: // TASK_CRAZY_TAP
+        case 17: // TASK_RAPID_FIRE_TAP
+        case 19: // TASK_PLAY_SCRIPT
+        case 20: // TASK_PLAY_SCRIPT_FORCE_STOP
+        case 21: // TASK_TEMPLATE_MATCH
+        case 22: // TASK_SHOW_TOAST
+        case 23: // TASK_COLOR_PICKER
+        case 24: // TASK_TEXT_INPUT
+        case 25: // TASK_GET_DEVICE_INFO
+        case 26: // TASK_TOUCH_INDICATOR
+        case 27: // TASK_TEXT_RECOGNIZER
+        case 28: // TASK_COLOR_SEARCHER
+        case 29: // TASK_SCREENSHOT
+        case 30: // TASK_HARDWARE_KEY
+        case 31: // TASK_APP_KILL
+        case 32: // TASK_APP_STATE
+        case 33: // TASK_APP_INFO
+        case 34: // TASK_FRONTMOST_APP_ID
+        case 35: // TASK_FRONTMOST_APP_ORIENTATION
+        case 36: // TASK_SET_AUTO_LAUNCH
+        case 37: // TASK_LIST_AUTO_LAUNCH
+        case 38: // TASK_SET_TIMER
+        case 39: // TASK_REMOVE_TIMER
+        case 40: // TASK_KEEP_AWAKE
+        case 41: // TASK_STOP_SCRIPT
+        case 42: // TASK_DIALOG
+        case 43: // TASK_CLEAR_DIALOG
+        case 44: // TASK_ROOT_DIR
+        case 45: // TASK_CURRENT_DIR
+        case 46: // TASK_BOT_PATH
+        case 90: // TASK_UPDATE_CACHE
+            return true;
+        default:
+            return false;
+    }
+}
+
+static CFDataRef sendIPCMessage(const char *payload)
+{
+    CFDataRef responseData = NULL;
+    CFMessagePortRef remotePort = CFMessagePortCreateRemote(kCFAllocatorDefault, kZXTouchIPCPortName);
+    if (!remotePort) {
+        NSLog(@"### com.zjx.zxtouchd: unable to find SpringBoard IPC port.");
+        return NULL;
+    }
+
+    CFDataRef messageData = CFDataCreate(kCFAllocatorDefault, (const UInt8 *)payload, strlen(payload));
+    SInt32 result = CFMessagePortSendRequest(remotePort,
+                                             1,
+                                             messageData,
+                                             2.0,
+                                             2.0,
+                                             kCFRunLoopDefaultMode,
+                                             &responseData);
+    if (result != kCFMessagePortSuccess) {
+        NSLog(@"### com.zjx.zxtouchd: IPC send failed with code %d", (int)result);
+    }
+
+    if (messageData) {
+        CFRelease(messageData);
+    }
+    CFRelease(remotePort);
+    return responseData;
+}
+
 static void handleDaemonMessage(UInt8 *buff, CFWriteStreamRef client)
 {
     if (!buff) {
         return;
     }
     NSLog(@"### com.zjx.zxtouchd: received task payload: %s", buff);
-    if (strcmp((const char *)buff, kZXTouchIPCCommandHome) == 0) {
-        CFMessagePortRef remotePort = CFMessagePortCreateRemote(kCFAllocatorDefault, kZXTouchIPCPortName);
-        if (!remotePort) {
-            NSLog(@"### com.zjx.zxtouchd: unable to find SpringBoard IPC port.");
+    const char *buffer = (const char *)buff;
+    const int taskType = getTaskTypeFromBuffer(buffer);
+    bool isSpringBoardTask = taskType >= 0 && shouldRouteToSpringBoard(taskType);
+
+    if (strcmp(buffer, kZXTouchIPCCommandHome) == 0) {
+        isSpringBoardTask = true;
+    }
+
+    if (isSpringBoardTask) {
+        char ipcPayload[4096];
+        if (strcmp(buffer, kZXTouchIPCCommandHome) == 0) {
+            snprintf(ipcPayload, sizeof(ipcPayload), "%s", kZXTouchIPCCommandHome);
         } else {
-            CFDataRef messageData = CFDataCreate(kCFAllocatorDefault, buff, strlen((const char *)buff));
-            SInt32 result = CFMessagePortSendRequest(remotePort,
-                                                     1,
-                                                     messageData,
-                                                     1.0,
-                                                     1.0,
-                                                     NULL,
-                                                     NULL);
-            if (result != kCFMessagePortSuccess) {
-                NSLog(@"### com.zjx.zxtouchd: IPC send failed with code %d", (int)result);
-            }
-            if (messageData) {
-                CFRelease(messageData);
-            }
-            CFRelease(remotePort);
+            snprintf(ipcPayload, sizeof(ipcPayload), "%s%s", kZXTouchIPCCommandTaskPrefix, buffer);
         }
+        CFDataRef responseData = sendIPCMessage(ipcPayload);
         if (client) {
-            const char *response = "0;;queued\r\n";
-            CFWriteStreamWrite(client, (const UInt8 *)response, strlen(response));
+            if (responseData) {
+                const UInt8 *responseBytes = CFDataGetBytePtr(responseData);
+                CFIndex responseLength = CFDataGetLength(responseData);
+                if (responseBytes && responseLength > 0) {
+                    CFWriteStreamWrite(client, responseBytes, responseLength);
+                }
+                CFRelease(responseData);
+            } else {
+                const char *response = "0;;queued\r\n";
+                CFWriteStreamWrite(client, (const UInt8 *)response, strlen(response));
+            }
         }
         return;
     }
+
     if (client) {
         const char *response = "1;;zxtouchd: task handling not implemented\r\n";
         CFWriteStreamWrite(client, (const UInt8 *)response, strlen(response));

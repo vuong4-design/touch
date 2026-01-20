@@ -5,5 +5,6 @@
 
 static CFStringRef const kZXTouchIPCPortName = CFSTR("com.zjx.zxtouchd.springboard");
 static const char *const kZXTouchIPCCommandHome = "CMD_HOME";
+static const char *const kZXTouchIPCCommandTaskPrefix = "TASK::";
 
 #endif
