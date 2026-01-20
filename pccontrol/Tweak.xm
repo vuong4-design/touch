@@ -40,6 +40,7 @@
 #include "TouchIndicator/TouchIndicatorWindow.h"
 #include "Activator/ActivatorListener.h"
 #include "H264Stream.h"
+#include "IPCConstants.h"
 #include "IPCMessagePort.h"
 
 
@@ -66,7 +67,7 @@ static ActivatorListener *activatorInstance;
 int daemonSock = -1;
 
 
-typedef struct　eventInfo_s* eventInfo;
+typedef struct eventInfo_s* eventInfo;
 typedef struct Node* llNodePtr;
 typedef struct eventData_s* eventDataPtr;
 
