@@ -71,6 +71,7 @@ static CFDataRef handleIPCMessage(CFMessagePortRef local, SInt32 msgid, CFDataRe
 void startIPCServer()
 {
     if (ipcLocalPort) {
+        NSLog(@"### com.zjx.springboard: IPC server already running.");
         return;
     }
 
@@ -88,6 +89,7 @@ void startIPCServer()
 
     ipcRunLoopSource = CFMessagePortCreateRunLoopSource(kCFAllocatorDefault, ipcLocalPort, 0);
     if (!ipcRunLoopSource) {
+        NSLog(@"### com.zjx.springboard: failed to create IPC run loop source.");
         CFRelease(ipcLocalPort);
         ipcLocalPort = NULL;
         return;

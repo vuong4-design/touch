@@ -78,6 +78,7 @@ static CFDataRef sendIPCMessage(const char *payload)
     }
 
     CFDataRef messageData = CFDataCreate(kCFAllocatorDefault, (const UInt8 *)payload, strlen(payload));
+    NSLog(@"### com.zjx.zxtouchd: IPC send payload: %s", payload);
     SInt32 result = CFMessagePortSendRequest(remotePort,
                                              1,
                                              messageData,
@@ -87,6 +88,8 @@ static CFDataRef sendIPCMessage(const char *payload)
                                              &responseData);
     if (result != kCFMessagePortSuccess) {
         NSLog(@"### com.zjx.zxtouchd: IPC send failed with code %d", (int)result);
+    } else {
+        NSLog(@"### com.zjx.zxtouchd: IPC send success");
     }
 
     if (messageData) {
@@ -176,7 +179,7 @@ void socketServer()
 
         socketClients = [[NSMutableDictionary alloc] init];
 
-        NSLog(@"### com.zjx.zxtouchd: connection waiting");
+        NSLog(@"### com.zjx.zxtouchd: connection waiting on port %d", ZXTOUCHD_PORT);
         CFRunLoopRef cfrunLoop = CFRunLoopGetCurrent();
         CFRunLoopSourceRef source = CFSocketCreateRunLoopSource(kCFAllocatorDefault, _socket, 0);
 
@@ -231,7 +234,7 @@ static void TCPServerAcceptCallBack(CFSocketRef socket, CFSocketCallBackType typ
         }
 
         struct sockaddr_in *addr_in = (struct sockaddr_in *)name;
-        NSLog(@"### com.zjx.zxtouchd: connection starts", inet_ntoa(addr_in-> sin_addr), addr_in->sin_port);
+        NSLog(@"### com.zjx.zxtouchd: connection starts from %s:%d", inet_ntoa(addr_in->sin_addr), ntohs(addr_in->sin_port));
 
         readStreamRef = NULL;
         writeStreamRef = NULL;

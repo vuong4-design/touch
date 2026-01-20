@@ -288,6 +288,7 @@ Boolean init()
     %orig;
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSLog(@"### com.zjx.springboard: tweak launch init begin");
         Boolean isExpired = false;
 
         int requestCount = 0;
@@ -324,6 +325,7 @@ Boolean init()
 
     });
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSLog(@"### com.zjx.springboard: init UI services");
         CGFloat screen_scale = [[UIScreen mainScreen] scale];
 
         CGFloat width = [UIScreen mainScreen].bounds.size.width * screen_scale;
@@ -333,10 +335,12 @@ Boolean init()
 
         //CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)stopCrazyTapCallback, CFSTR("com.zjx.crazytap.stop"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
         popupWindow = [[PopupWindow alloc] init];
+        NSLog(@"### com.zjx.springboard: popup window created");
 
         initSenderId();
         startPopupListeningCallBack();
         startIPCServer();
+        NSLog(@"### com.zjx.springboard: popup listener + IPC server started");
 
         // init touch screensize. Temporarily put this line here. Will be removed.
         initTouchGetScreenSize();
@@ -344,8 +348,10 @@ Boolean init()
         // init other things
         if (!init())
         {
+            NSLog(@"### com.zjx.springboard: init failed");
             return;
         }
+        NSLog(@"### com.zjx.springboard: init complete");
 
      /*
         
@@ -367,6 +373,7 @@ Boolean init()
         //system("sudo zxtouchb -e \"chown -R mobile:mobile /var/mobile/Library/ZXTouch\"");
 
         startH264StreamServer();
+        NSLog(@"### com.zjx.springboard: H264 stream server started");
     });
 }
 %end
