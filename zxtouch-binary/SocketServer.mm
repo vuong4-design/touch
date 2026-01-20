@@ -185,17 +185,10 @@ static void handleDaemonMessage(UInt8 *buff, CFWriteStreamRef client)
                 ? true
                 : shouldWaitForResponse(taskType);
             __block CFDataRef responseData = NULL;
-            if (waitForResponse) {
-                dispatch_sync(ipcQueue(), ^{
-                    responseData = sendIPCMessage([payloadString UTF8String], true);
-                });
-            } else {
-                NSString *asyncPayload = [payloadString copy];
-                dispatch_async(ipcQueue(), ^{
-                    sendIPCMessage([asyncPayload UTF8String], false);
-                });
-            }
-        if (client) {
+            dispatch_sync(ipcQueue(), ^{
+                responseData = sendIPCMessage([payloadString UTF8String], waitForResponse);
+            });
+            if (client) {
             if (responseData) {
                 const UInt8 *responseBytes = CFDataGetBytePtr(responseData);
                 CFIndex responseLength = CFDataGetLength(responseData);
