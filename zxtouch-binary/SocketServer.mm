@@ -68,7 +68,26 @@ static bool shouldRouteToSpringBoard(int taskType)
     }
 }
 
-static CFDataRef sendIPCMessage(const char *payload)
+static bool shouldWaitForResponse(int taskType)
+{
+    switch (taskType) {
+        case 14: // TASK_TOUCH_RECORDING_START
+        case 15: // TASK_TOUCH_RECORDING_STOP
+        case 16: // TASK_CRAZY_TAP
+        case 17: // TASK_RAPID_FIRE_TAP
+        case 19: // TASK_PLAY_SCRIPT
+        case 20: // TASK_PLAY_SCRIPT_FORCE_STOP
+        case 36: // TASK_SET_AUTO_LAUNCH
+        case 38: // TASK_SET_TIMER
+        case 39: // TASK_REMOVE_TIMER
+        case 40: // TASK_KEEP_AWAKE
+            return false;
+        default:
+            return true;
+    }
+}
+
+static CFDataRef sendIPCMessage(const char *payload, bool waitForResponse)
 {
     CFDataRef responseData = NULL;
     if (access(kZXTouchIPCReadyMarkerPath, F_OK) != 0) {
@@ -104,13 +123,15 @@ static CFDataRef sendIPCMessage(const char *payload)
 
     CFDataRef messageData = CFDataCreate(kCFAllocatorDefault, (const UInt8 *)payload, strlen(payload));
     NSLog(@"### com.zjx.zxtouchd: IPC send payload: %s", payload);
+    CFDataRef *responseTarget = waitForResponse ? &responseData : NULL;
+    const CFTimeInterval sendTimeout = waitForResponse ? 5.0 : 1.0;
     SInt32 result = CFMessagePortSendRequest(remotePort,
                                              1,
                                              messageData,
-                                             2.0,
-                                             2.0,
+                                             sendTimeout,
+                                             sendTimeout,
                                              kCFRunLoopDefaultMode,
-                                             &responseData);
+                                             responseTarget);
     if (result != kCFMessagePortSuccess) {
         NSLog(@"### com.zjx.zxtouchd: IPC send failed with code %d", (int)result);
     } else {
@@ -145,7 +166,10 @@ static void handleDaemonMessage(UInt8 *buff, CFWriteStreamRef client)
         } else {
             snprintf(ipcPayload, sizeof(ipcPayload), "%s%s", kZXTouchIPCCommandTaskPrefix, buffer);
         }
-        CFDataRef responseData = sendIPCMessage(ipcPayload);
+        bool waitForResponse = strcmp(buffer, kZXTouchIPCCommandHome) == 0
+            ? true
+            : shouldWaitForResponse(taskType);
+        CFDataRef responseData = sendIPCMessage(ipcPayload, waitForResponse);
         if (client) {
             if (responseData) {
                 const UInt8 *responseBytes = CFDataGetBytePtr(responseData);
@@ -155,7 +179,7 @@ static void handleDaemonMessage(UInt8 *buff, CFWriteStreamRef client)
                 }
                 CFRelease(responseData);
             } else {
-                const char *response = "1;;ipc_not_ready\r\n";
+                const char *response = waitForResponse ? "1;;ipc_not_ready\r\n" : "0;;queued\r\n";
                 CFWriteStreamWrite(client, (const UInt8 *)response, strlen(response));
             }
         }
