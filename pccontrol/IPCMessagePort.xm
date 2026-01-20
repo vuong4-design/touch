@@ -26,6 +26,7 @@ static CFDataRef handleIPCMessage(CFMessagePortRef local, SInt32 msgid, CFDataRe
         return NULL;
     }
 
+    NSLog(@"### com.zjx.springboard: IPC received command: %@", command);
     if ([command isEqualToString:[NSString stringWithUTF8String:kZXTouchIPCCommandHome]]) {
         NSError *error = nil;
         sendHardwareKeyEventFromRawData((UInt8 *)"1;;1", &error);
@@ -43,6 +44,8 @@ static CFDataRef handleIPCMessage(CFMessagePortRef local, SInt32 msgid, CFDataRe
     if ([command hasPrefix:taskPrefix]) {
         NSString *rawTask = [command substringFromIndex:[taskPrefix length]];
         if ([rawTask length] > 0) {
+            CFAbsoluteTime startTime = CFAbsoluteTimeGetCurrent();
+            NSLog(@"### com.zjx.springboard: IPC task start: %@", rawTask);
             CFWriteStreamRef responseStream = CFWriteStreamCreateWithAllocatedBuffers(kCFAllocatorDefault,
                                                                                       kCFAllocatorDefault);
             if (responseStream) {
@@ -56,6 +59,12 @@ static CFDataRef handleIPCMessage(CFMessagePortRef local, SInt32 msgid, CFDataRe
                     responseData = (CFDataRef)responseProperty;
                 }
                 if (responseData && CFDataGetLength(responseData) > 0) {
+                    CFAbsoluteTime duration = CFAbsoluteTimeGetCurrent() - startTime;
+                    NSData *responseNSData = [NSData dataWithBytes:CFDataGetBytePtr(responseData)
+                                                           length:(NSUInteger)CFDataGetLength(responseData)];
+                    NSString *responseString = [[NSString alloc] initWithData:responseNSData
+                                                                     encoding:NSUTF8StringEncoding];
+                    NSLog(@"### com.zjx.springboard: IPC task response in %.3fs: %@", duration, responseString);
                     return responseData;
                 }
                 if (responseProperty) {
@@ -64,6 +73,8 @@ static CFDataRef handleIPCMessage(CFMessagePortRef local, SInt32 msgid, CFDataRe
             } else {
                 processTask((UInt8 *)[rawTask UTF8String]);
             }
+            CFAbsoluteTime duration = CFAbsoluteTimeGetCurrent() - startTime;
+            NSLog(@"### com.zjx.springboard: IPC task finished in %.3fs without response", duration);
         }
         const char *response = "0\r\n";
         return CFDataCreate(kCFAllocatorDefault, (const UInt8 *)response, strlen(response));

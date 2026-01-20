@@ -201,6 +201,13 @@ static void handleDaemonMessage(UInt8 *buff, CFWriteStreamRef client)
                 CFIndex responseLength = CFDataGetLength(responseData);
                 if (responseBytes && responseLength > 0) {
                     CFWriteStreamWrite(client, responseBytes, responseLength);
+                    NSData *responseNSData = [NSData dataWithBytes:responseBytes
+                                                           length:(NSUInteger)responseLength];
+                    NSString *responseString = [[NSString alloc] initWithData:responseNSData
+                                                                     encoding:NSUTF8StringEncoding];
+                    NSLog(@"### com.zjx.zxtouchd: IPC response: %@", responseString);
+                } else {
+                    NSLog(@"### com.zjx.zxtouchd: IPC response empty");
                 }
                 CFRelease(responseData);
             } else {
