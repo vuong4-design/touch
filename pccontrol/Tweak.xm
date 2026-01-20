@@ -40,6 +40,7 @@
 #include "TouchIndicator/TouchIndicatorWindow.h"
 #include "Activator/ActivatorListener.h"
 #include "H264Stream.h"
+#include "IPCMessagePort.h"
 
 
 #define DEBUG_MODE
@@ -335,6 +336,7 @@ Boolean init()
 
         initSenderId();
         startPopupListeningCallBack();
+        startIPCServer();
 
         // init touch screensize. Temporarily put this line here. Will be removed.
         initTouchGetScreenSize();

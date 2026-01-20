@@ -1,6 +1,7 @@
 // TODO: multiple client write back support
 
 #include "SocketServer.h"
+#include "IPCConstants.h"
 #include <string.h>
 
 CFSocketRef socketRef;
@@ -19,6 +20,33 @@ static void handleDaemonMessage(UInt8 *buff, CFWriteStreamRef client)
         return;
     }
     NSLog(@"### com.zjx.zxtouchd: received task payload: %s", buff);
+    if (strcmp((const char *)buff, kZXTouchIPCCommandHome) == 0) {
+        CFMessagePortRef remotePort = CFMessagePortCreateRemote(kCFAllocatorDefault, kZXTouchIPCPortName);
+        if (!remotePort) {
+            NSLog(@"### com.zjx.zxtouchd: unable to find SpringBoard IPC port.");
+        } else {
+            CFDataRef messageData = CFDataCreate(kCFAllocatorDefault, buff, strlen((const char *)buff));
+            SInt32 result = CFMessagePortSendRequest(remotePort,
+                                                     1,
+                                                     messageData,
+                                                     1.0,
+                                                     1.0,
+                                                     NULL,
+                                                     NULL);
+            if (result != kCFMessagePortSuccess) {
+                NSLog(@"### com.zjx.zxtouchd: IPC send failed with code %d", (int)result);
+            }
+            if (messageData) {
+                CFRelease(messageData);
+            }
+            CFRelease(remotePort);
+        }
+        if (client) {
+            const char *response = "0;;queued\r\n";
+            CFWriteStreamWrite(client, (const UInt8 *)response, strlen(response));
+        }
+        return;
+    }
     if (client) {
         const char *response = "1;;zxtouchd: task handling not implemented\r\n";
         CFWriteStreamWrite(client, (const UInt8 *)response, strlen(response));
