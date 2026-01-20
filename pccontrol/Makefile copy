@@ -8,7 +8,7 @@ pccontrol_FILES = Tweak.xm SocketResponder.xm IPCMessagePort.xm Touch.xm Screen.
 pccontrol_CFLAGS = -Wno-error -Wno-module-import-in-extern-c -fobjc-arc
 Screen_CFLAGS += -fno-objc-arc
 
-pccontrol_FRAMEWORKS = UIKit opencv2 AssetsLibrary AVFoundation CoreMedia CoreVideo IOSurface
+pccontrol_FRAMEWORKS = UIKit AssetsLibrary AVFoundation CoreMedia CoreVideo IOSurface
 pccontrol_ARCHS = arm64e arm64 armv7
 #pccontrol_CCFLAGS = -std=c++11
 

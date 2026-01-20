@@ -10,13 +10,7 @@ pccontrol_FRAMEWORKS = UIKit AssetsLibrary AVFoundation CoreMedia CoreVideo IOSu
 pccontrol_ARCHS =  arm64 arm64e
 pccontrol_CCFLAGS = -std=c++11
 
-pccontrol_CFLAGS += -F$(THEOS_PROJECT_DIR)/frameworks
-pccontrol_LDFLAGS += -F$(THEOS_PROJECT_DIR)/frameworks
-pccontrol_CFLAGS += -I$(THEOS_PROJECT_DIR)/frameworks/opencv2.framework/Versions/A/Headers
-pccontrol_CCFLAGS += -I$(THEOS_PROJECT_DIR)/frameworks/opencv2.framework/Versions/A/Headers
-
 pccontrol_PRIVATE_FRAMEWORKS = IOKit MobileCoreServices
-pccontrol_EXTRA_FRAMEWORKS = opencv2
 pccontrol_LIBRARIES = substrate
 
 include $(THEOS_MAKE_PATH)/tweak.mk
