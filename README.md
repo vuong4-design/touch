@@ -30,7 +30,7 @@ https://github.com/dounine/SimulateTouch ok
 
 ## === Original Content ===
 
-A **system wide** touch event simulation library for iOS 11.0 - 14.
+A **system wide** touch event simulation library for iOS 11.0 - 14.8
 
 Jailbroken device required. Application wide touch simulation library: [PTFakeTouch](https://github.com/Ret70/PTFakeTouch). Choose as you like:)
 
